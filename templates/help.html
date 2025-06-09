@@ -1,0 +1,203 @@
+{% extends "base.html" %}
+
+{% block title %}Guide d'utilisation - Outil d'Analyse SEO{% endblock %}
+
+{% block content %}
+<div class="main-container">
+    <!-- Header Section -->
+    <div class="hero-section">
+        <div class="container">
+            <h1>Guide d'utilisation</h1>
+            <p class="lead">Comprendre les métriques et recommandations de votre analyse SEO</p>
+            <a href="{{ root_path }}/" class="btn btn-light">Retour à l'analyse</a>
+        </div>
+    </div>
+    
+    <div class="container py-4">
+        
+        <div class="row mb-5">
+            <div class="col-12">
+                <h3>Métriques Principales</h3>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Score Cible</h5>
+                                <p class="card-text">Score SEO recommandé basé sur l'analyse des 3 meilleurs concurrents + 10% pour être compétitif.</p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Mots Requis</h5>
+                                <p class="card-text">Nombre de mots recommandé pour votre contenu, calculé sur la moyenne des meilleurs concurrents + 10%.</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-5">
+            <div class="col-12">
+                <h3>Mots-clés Stratégiques</h3>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Mots-clés Obligatoires</h5>
+                                <p class="card-text">
+                                    Mots-clés principaux extraits du contenu concurrent avec score TF-IDF. 
+                                    Ces mots doivent impérativement apparaître dans votre contenu.
+                                </p>
+                                <small class="text-muted">Les mots de votre requête obtiennent un bonus d'importance</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title">Mots-clés Complémentaires</h5>
+                                <p class="card-text">
+                                    Mots-clés secondaires pour enrichir le champ sémantique de votre contenu 
+                                    et améliorer sa pertinence thématique.
+                                </p>
+                                <small class="text-muted">Utilisez-les pour diversifier votre vocabulaire</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-5">
+            <div class="col-12">
+                <h3>Groupes de Mots-clés</h3>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-layer-group me-2"></i>Expressions 2 Mots</h5>
+                                <p class="card-text">
+                                    Groupes de mots-clés de 2 termes extraits automatiquement du contenu concurrent. 
+                                    Ces expressions sont particulièrement efficaces pour le référencement car elles :
+                                </p>
+                                <ul>
+                                    <li>Sont plus spécifiques que les mots simples</li>
+                                    <li>Correspondent mieux aux requêtes utilisateurs</li>
+                                    <li>Ont moins de concurrence</li>
+                                </ul>
+                                <small class="text-muted">Exemple : "agence seo", "référencement naturel"</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-tags me-2"></i>Expressions 3 Mots</h5>
+                                <p class="card-text">
+                                    Expressions longues de 3 termes qui représentent des requêtes très spécifiques. 
+                                    Ces expressions longue traîne permettent de :
+                                </p>
+                                <ul>
+                                    <li>Cibler des niches précises</li>
+                                    <li>Obtenir un trafic qualifié</li>
+                                    <li>Répondre aux recherches vocales</li>
+                                </ul>
+                                <small class="text-muted">Exemple : "audit seo gratuit", "formation seo lille"</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-5">
+            <div class="col-12">
+                <h3>Données SERP</h3>
+                <div class="row">
+                    <div class="col-md-4 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-google me-2"></i>People Also Ask</h5>
+                                <p class="card-text">
+                                    Questions réelles extraites de Google pour comprendre les intentions 
+                                    de recherche des utilisateurs.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-search me-2"></i>Recherches Associées</h5>
+                                <p class="card-text">
+                                    Suggestions Google apparaissant en bas de page pour découvrir 
+                                    des variations de mots-clés.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4 mb-3">
+                        <div class="card">
+                            <div class="card-body">
+                                <h5 class="card-title"><i class="fas fa-video me-2"></i>Vidéos SERP</h5>
+                                <p class="card-text">
+                                    Vidéos apparaissant dans les résultats de recherche pour identifier 
+                                    les opportunités de contenu multimédia.
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-5">
+            <div class="col-12">
+                <h3>Analyse Concurrentielle</h3>
+                <div class="alert alert-info">
+                    <h5><i class="fas fa-info-circle me-2"></i>Calcul du Score Cible</h5>
+                    <p>Le score cible est calculé selon cette méthode :</p>
+                    <ol>
+                        <li>Collecte des scores SEO des 10 premiers résultats</li>
+                        <li>Sélection des 3 meilleurs scores</li>
+                        <li>Calcul de la moyenne de ces 3 scores</li>
+                        <li>Ajout de 10% pour surpasser la concurrence</li>
+                        <li>Plafonnement à 100 points maximum</li>
+                    </ol>
+                    <p class="mb-0">Le score individuel est basé sur la densité et présence des mots-clés obligatoires dans le contenu.</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="row mb-5">
+            <div class="col-12">
+                <h3>Comment Utiliser Ces Données</h3>
+                <div class="row">
+                    <div class="col-md-6">
+                        <h5>✅ Stratégie de Contenu</h5>
+                        <ul>
+                            <li>Intégrez les mots-clés obligatoires naturellement</li>
+                            <li>Utilisez les expressions 2-3 mots comme titres H2/H3</li>
+                            <li>Répondez aux questions PAA dans votre contenu</li>
+                            <li>Respectez le nombre de mots recommandé</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h5>📊 Optimisation SEO</h5>
+                        <ul>
+                            <li>Visez le score cible sans sur-optimiser</li>
+                            <li>Exploitez les recherches associées pour des variations</li>
+                            <li>Créez du contenu vidéo si présent dans les SERP</li>
+                            <li>Suivez la structure des meilleurs concurrents</li>
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+    </div>
+</div>
+{% endblock %} 

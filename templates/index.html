@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+
+{% block title %}Analysez votre Sémantique SEO{% endblock %}
+
+{% block content %}
+<div class="min-h-screen">
+    <!-- Hero Section -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-16 pb-12">
+        <div class="text-center">
+            <h1 class="text-4xl md:text-6xl font-bold mb-6">
+                Explorez le <span class="bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent">Sémantique SEO</span> de <span class="text-green-400">Google</span>
+            </h1>
+            <p class="text-xl text-gray-300 mb-12 max-w-3xl mx-auto">
+                Recherchez des mots-clés, analysez la concurrence et optimisez votre contenu pour dominer les SERPs
+            </p>
+        </div>
+
+        <!-- Search Form -->
+        <div class="max-w-4xl mx-auto">
+            <div class="gradient-border">
+                <div class="gradient-border-content">
+                    <h2 class="text-2xl font-semibold mb-6 text-center">Analyse de mots-clés</h2>
+                    
+                    <form id="analysisForm" method="POST" action="{{ root_path }}/analyze">
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
+                            <!-- Terme de recherche -->
+                            <div class="md:col-span-2">
+                                <label for="query" class="block text-sm font-medium text-gray-300 mb-2">
+                                    Terme de recherche
+                                </label>
+                                <input 
+                                    type="text" 
+                                    id="query" 
+                                    name="query" 
+                                    required
+                                    placeholder="Rechercher des mots-clés..."
+                                    class="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                                >
+                            </div>
+                            
+                            <!-- Type d'analyse -->
+                            <div>
+                                <label for="analysis_type" class="block text-sm font-medium text-gray-300 mb-2">
+                                    Type d'analyse
+                                </label>
+                                <select 
+                                    id="analysis_type" 
+                                    name="analysis_type"
+                                    class="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
+                                >
+                                    <option value="complete">Analyse complète</option>
+                                    <option value="keywords">Mots-clés uniquement</option>
+                                    <option value="competitors">Concurrents uniquement</option>
+                                </select>
+                            </div>
+                        </div>
+                        
+                        <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                            <button 
+                                type="submit" 
+                                class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-8 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center"
+                                id="analyzeBtn"
+                            >
+                                <i class="fas fa-search mr-2"></i>
+                                ANALYSER
+                            </button>
+                            
+                            <button 
+                                type="button" 
+                                class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-8 rounded-lg transition-all transform hover:scale-105 flex items-center justify-center"
+                                onclick="exportDemo()"
+                            >
+                                <i class="fas fa-download mr-2"></i>
+                                EXPORTER DÉMO
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Features Section -->
+        <div class="mt-20 grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
+            <div class="text-center p-6 glass-effect rounded-lg">
+                <i class="fas fa-search text-4xl text-blue-400 mb-4"></i>
+                <h3 class="text-xl font-semibold mb-2">Analyse SERP</h3>
+                <p class="text-gray-400">Analysez les top 10 résultats Google pour votre requête</p>
+            </div>
+            
+            <div class="text-center p-6 glass-effect rounded-lg">
+                <i class="fas fa-key text-4xl text-green-400 mb-4"></i>
+                <h3 class="text-xl font-semibold mb-2">Mots-clés SEO</h3>
+                <p class="text-gray-400">Découvrez les mots-clés obligatoires et complémentaires</p>
+            </div>
+            
+            <div class="text-center p-6 glass-effect rounded-lg">
+                <i class="fas fa-users text-4xl text-purple-400 mb-4"></i>
+                <h3 class="text-xl font-semibold mb-2">Concurrence</h3>
+                <p class="text-gray-400">Analysez vos concurrents et leurs stratégies</p>
+            </div>
+            
+            <div class="text-center p-6 glass-effect rounded-lg">
+                <i class="fas fa-chart-line text-4xl text-yellow-400 mb-4"></i>
+                <h3 class="text-xl font-semibold mb-2">Métriques</h3>
+                <p class="text-gray-400">Obtenez scores, objectifs et recommandations</p>
+            </div>
+        </div>
+
+        <!-- FAQ Section pour SEO -->
+        <div class="mt-20">
+            <div class="text-center mb-12">
+                <h2 class="text-3xl md:text-4xl font-bold mb-4">
+                    Questions fréquentes sur notre <span class="bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent">outil d'analyse sémantique</span>
+                </h2>
+                <p class="text-xl text-gray-300 max-w-3xl mx-auto">
+                    Découvrez tout ce que vous devez savoir sur notre outil d'analyse sémantique SEO gratuit
+                </p>
+            </div>
+
+            <div class="max-w-4xl mx-auto space-y-4">
+                <!-- FAQ Item 1 -->
+                <div class="glass-effect rounded-lg overflow-hidden">
+                    <button class="faq-toggle w-full text-left p-6 flex justify-between items-center hover:bg-white hover:bg-opacity-5 transition-colors" onclick="toggleFAQ('faq1')">
+                        <h3 class="text-lg font-semibold text-white">Qu'est-ce qu'un outil d'analyse sémantique SEO ?</h3>
+                        <i id="faq1-icon" class="fas fa-chevron-down text-blue-400 transition-transform"></i>
+                    </button>
+                    <div id="faq1" class="faq-content hidden px-6 pb-6">
+                        <p class="text-gray-300 leading-relaxed">
+                            Un outil d'analyse sémantique SEO est un logiciel qui étudie le contexte et le sens des mots-clés dans les contenus web. 
+                            Notre outil analyse les 10 premiers résultats Google pour identifier les mots-clés obligatoires, complémentaires, 
+                            et les expressions sémantiques qui vous aideront à optimiser votre contenu pour un meilleur classement.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 2 -->
+                <div class="glass-effect rounded-lg overflow-hidden">
+                    <button class="faq-toggle w-full text-left p-6 flex justify-between items-center hover:bg-white hover:bg-opacity-5 transition-colors" onclick="toggleFAQ('faq2')">
+                        <h3 class="text-lg font-semibold text-white">Comment fonctionne l'analyse sémantique de votre outil ?</h3>
+                        <i id="faq2-icon" class="fas fa-chevron-down text-blue-400 transition-transform"></i>
+                    </button>
+                    <div id="faq2" class="faq-content hidden px-6 pb-6">
+                        <p class="text-gray-300 leading-relaxed">
+                            Notre outil d'analyse sémantique examine les pages les mieux classées sur Google pour votre requête cible. 
+                            Il extrait automatiquement les mots-clés, expressions, et champs lexicaux utilisés par vos concurrents, 
+                            puis calcule leur fréquence d'utilisation optimale. Vous obtenez ainsi une liste précise des termes à intégrer 
+                            dans votre contenu pour améliorer votre positionnement SEO.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 3 -->
+                <div class="glass-effect rounded-lg overflow-hidden">
+                    <button class="faq-toggle w-full text-left p-6 flex justify-between items-center hover:bg-white hover:bg-opacity-5 transition-colors" onclick="toggleFAQ('faq3')">
+                        <h3 class="text-lg font-semibold text-white">Pourquoi utiliser un outil d'analyse sémantique gratuit ?</h3>
+                        <i id="faq3-icon" class="fas fa-chevron-down text-blue-400 transition-transform"></i>
+                    </button>
+                    <div id="faq3" class="faq-content hidden px-6 pb-6">
+                        <p class="text-gray-300 leading-relaxed">
+                            L'analyse sémantique est essentielle pour comprendre l'intention de recherche des utilisateurs. 
+                            Notre outil gratuit vous permet de découvrir les mots-clés sémantiques que Google associe à votre requête, 
+                            d'analyser la concurrence, et d'optimiser votre contenu sans investissement initial. 
+                            C'est l'outil parfait pour débuter en SEO sémantique.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 4 -->
+                <div class="glass-effect rounded-lg overflow-hidden">
+                    <button class="faq-toggle w-full text-left p-6 flex justify-between items-center hover:bg-white hover:bg-opacity-5 transition-colors" onclick="toggleFAQ('faq4')">
+                        <h3 class="text-lg font-semibold text-white">Quels types de mots-clés analyse votre outil sémantique ?</h3>
+                        <i id="faq4-icon" class="fas fa-chevron-down text-blue-400 transition-transform"></i>
+                    </button>
+                    <div id="faq4" class="faq-content hidden px-6 pb-6">
+                        <p class="text-gray-300 leading-relaxed">
+                            Notre outil d'analyse sémantique identifie plusieurs types de mots-clés : les mots-clés obligatoires (essentiels pour ranker), 
+                            les mots-clés complémentaires (qui enrichissent le champ lexical), les expressions 2-3 mots (bigrams et trigrams), 
+                            et les n-grams sémantiques (expressions longues à forte valeur ajoutée). Chaque type contribue à l'optimisation sémantique de votre contenu.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 5 -->
+                <div class="glass-effect rounded-lg overflow-hidden">
+                    <button class="faq-toggle w-full text-left p-6 flex justify-between items-center hover:bg-white hover:bg-opacity-5 transition-colors" onclick="toggleFAQ('faq5')">
+                        <h3 class="text-lg font-semibold text-white">L'outil d'analyse sémantique convient-il aux débutants en SEO ?</h3>
+                        <i id="faq5-icon" class="fas fa-chevron-down text-blue-400 transition-transform"></i>
+                    </button>
+                    <div id="faq5" class="faq-content hidden px-6 pb-6">
+                        <p class="text-gray-300 leading-relaxed">
+                            Absolument ! Notre outil d'analyse sémantique a été conçu pour être accessible aux débutants tout en restant puissant pour les experts. 
+                            L'interface intuitive affiche clairement les recommandations, les scores cibles, et le nombre d'occurrences optimal pour chaque mot-clé. 
+                            De plus, les zones de copier-coller facilitent l'intégration des mots-clés dans vos contenus.
+                        </p>
+                    </div>
+                </div>
+
+                <!-- FAQ Item 6 -->
+                <div class="glass-effect rounded-lg overflow-hidden">
+                    <button class="faq-toggle w-full text-left p-6 flex justify-between items-center hover:bg-white hover:bg-opacity-5 transition-colors" onclick="toggleFAQ('faq6')">
+                        <h3 class="text-lg font-semibold text-white">Comment interpréter les résultats de l'analyse sémantique ?</h3>
+                        <i id="faq6-icon" class="fas fa-chevron-down text-blue-400 transition-transform"></i>
+                    </button>
+                    <div id="faq6" class="faq-content hidden px-6 pb-6">
+                        <p class="text-gray-300 leading-relaxed">
+                            Les résultats de notre outil d'analyse sémantique incluent : un score cible à atteindre, le nombre de mots recommandé pour votre article, 
+                            une liste de mots-clés avec leur fréquence d'utilisation optimale (min-max), et l'analyse des concurrents. 
+                            Suivez ces recommandations pour créer un contenu sémantiquement riche et bien optimisé pour Google.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+    </div>
+</div>
+
+<!-- Loading Modal -->
+<div id="loadingModal" class="fixed inset-0 bg-black bg-opacity-75 hidden items-center justify-center z-50">
+    <div class="glass-effect rounded-lg p-8 text-center max-w-md mx-4">
+        <div class="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-400 mx-auto mb-4"></div>
+        <h3 class="text-xl font-semibold mb-2">Analyse en cours...</h3>
+        <p class="text-gray-300">Nous analysons les résultats Google pour votre requête</p>
+        <div class="mt-4 text-sm text-gray-400">
+            <div id="loadingStep">Récupération des données SERP...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+    function setQuery(query) {
+        document.getElementById('query').value = query;
+        document.getElementById('query').focus();
+    }
+    
+    function exportDemo() {
+        const demoData = {
+            query: "créatine vs whey",
+            timestamp: new Date().toISOString(),
+            type: "demo_export"
+        };
+        
+        const dataStr = JSON.stringify(demoData, null, 2);
+        const dataBlob = new Blob([dataStr], {type: 'application/json'});
+        
+        const link = document.createElement('a');
+        link.href = URL.createObjectURL(dataBlob);
+        link.download = 'demo_seo_analysis.json';
+        link.click();
+    }
+    
+    function toggleFAQ(faqId) {
+        const content = document.getElementById(faqId);
+        const icon = document.getElementById(faqId + '-icon');
+        
+        if (content.classList.contains('hidden')) {
+            // Fermer tous les autres FAQs
+            document.querySelectorAll('.faq-content').forEach(faq => {
+                if (!faq.classList.contains('hidden')) {
+                    faq.classList.add('hidden');
+                }
+            });
+            document.querySelectorAll('[id$="-icon"]').forEach(iconEl => {
+                iconEl.classList.remove('fa-chevron-up');
+                iconEl.classList.add('fa-chevron-down');
+            });
+            
+            // Ouvrir le FAQ cliqué
+            content.classList.remove('hidden');
+            icon.classList.remove('fa-chevron-down');
+            icon.classList.add('fa-chevron-up');
+        } else {
+            // Fermer le FAQ cliqué
+            content.classList.add('hidden');
+            icon.classList.remove('fa-chevron-up');
+            icon.classList.add('fa-chevron-down');
+        }
+    }
+    
+    document.getElementById('analysisForm').addEventListener('submit', function(e) {
+        const modal = document.getElementById('loadingModal');
+        modal.classList.remove('hidden');
+        modal.classList.add('flex');
+        
+        // Simulation des étapes de chargement
+        const steps = [
+            'Récupération des données SERP...',
+            'Analyse des concurrents...',
+            'Extraction des mots-clés...',
+            'Calcul des métriques...',
+            'Finalisation de l\'analyse...'
+        ];
+        
+        let currentStep = 0;
+        const stepElement = document.getElementById('loadingStep');
+        
+        const interval = setInterval(() => {
+            if (currentStep < steps.length - 1) {
+                currentStep++;
+                stepElement.textContent = steps[currentStep];
+            } else {
+                clearInterval(interval);
+            }
+        }, 1000);
+    });
+</script>
+{% endblock %} 

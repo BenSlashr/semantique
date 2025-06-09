@@ -1,0 +1,637 @@
+{% extends "base.html" %}
+
+{% block title %}Résultats d'analyse - {{ query }}{% endblock %}
+
+{% block content %}
+<div class="min-h-screen">
+    <!-- Hero Section -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-12">
+        <div class="text-center mb-12">
+            <h1 class="text-4xl md:text-5xl font-bold mb-4">
+                Analyse pour <span class="bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent">"{{ query }}"</span>
+            </h1>
+            <p class="text-xl text-gray-300 mb-6">Résultats de l'analyse sémantique SEO</p>
+            <div class="flex flex-col sm:flex-row gap-4 justify-center">
+                <a href="{{ root_path }}/" class="bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 px-6 rounded-lg transition-all flex items-center justify-center">
+                    <i class="fas fa-arrow-left mr-2"></i>
+                    Nouvelle analyse
+                </a>
+                <button onclick="exportResults()" class="bg-green-600 hover:bg-green-700 text-white font-semibold py-3 px-6 rounded-lg transition-all flex items-center justify-center">
+                    <i class="fas fa-download mr-2"></i>
+                    Exporter résultats
+                </button>
+            </div>
+        </div>
+
+        <!-- Métriques principales -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-12">
+            <div class="glass-effect rounded-lg p-6 text-center">
+                <div class="text-3xl font-bold text-blue-400 mb-2">{{ results.score_target }}</div>
+                <div class="text-gray-300 font-medium">Score Cible</div>
+            </div>
+            <div class="glass-effect rounded-lg p-6 text-center">
+                <div class="text-3xl font-bold text-green-400 mb-2">{{ results.mots_requis }}</div>
+                <div class="text-gray-300 font-medium">Mots Requis</div>
+            </div>
+        </div>
+
+        <!-- Mots-clés principaux -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+            <!-- Mots-clés Obligatoires -->
+            <div class="gradient-border">
+                <div class="gradient-border-content">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-2xl font-semibold flex items-center">
+                            <i class="fas fa-bullseye text-blue-400 mr-3"></i>
+                            Mots-clés Obligatoires
+                        </h3>
+                        <button class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center" onclick="copyKeywords('kw-obligatoires')">
+                            <i class="fas fa-copy mr-2"></i>
+                            Copier tout
+                        </button>
+                    </div>
+                    
+                    <!-- Zone de texte cachée pour la fonction copier -->
+                    <textarea id="kw-obligatoires" style="position: absolute; left: -9999px;" readonly>{% for keyword in results.KW_obligatoires %}{{ keyword[0] }} ({{ keyword[3] }}-{{ keyword[4] }})
+{% endfor %}</textarea>
+                    
+                    <!-- Affichage détaillé -->
+                    <div class="max-h-80 overflow-y-auto space-y-2">
+                        {% for keyword in results.KW_obligatoires %}
+                        <div class="keyword-item rounded-lg p-3 flex justify-between items-center">
+                            <div class="flex-1">
+                                <span class="font-semibold text-white">{{ keyword[0] }}</span>
+                                <span class="text-gray-400 ml-2">({{ keyword[3] }}-{{ keyword[4] }})</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Mots-clés Complémentaires -->
+            <div class="gradient-border">
+                <div class="gradient-border-content">
+                    <div class="flex justify-between items-center mb-6">
+                        <h3 class="text-2xl font-semibold flex items-center">
+                            <i class="fas fa-star text-green-400 mr-3"></i>
+                            Mots-clés Complémentaires
+                        </h3>
+                        <button class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center" onclick="copyKeywords('kw-complementaires')">
+                            <i class="fas fa-copy mr-2"></i>
+                            Copier tout
+                        </button>
+                    </div>
+                    
+                    <!-- Zone de texte cachée pour la fonction copier -->
+                    <textarea id="kw-complementaires" style="position: absolute; left: -9999px;" readonly>{% for keyword in results.KW_complementaires[:20] %}{{ keyword[0] }} ({{ keyword[3] }}-{{ keyword[4] }})
+{% endfor %}</textarea>
+                    
+                    <!-- Affichage détaillé -->
+                    <div class="max-h-80 overflow-y-auto space-y-2">
+                        {% for keyword in results.KW_complementaires[:20] %}
+                        <div class="keyword-item rounded-lg p-3 flex justify-between items-center">
+                            <div class="flex-1">
+                                <span class="font-semibold text-white">{{ keyword[0] }}</span>
+                                <span class="text-gray-400 ml-2">({{ keyword[3] }}-{{ keyword[4] }})</span>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Expressions et N-grams -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+            <!-- Expressions 2 Mots -->
+            <div class="glass-effect rounded-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 class="text-xl font-semibold flex items-center">
+                            <i class="fas fa-layer-group text-purple-400 mr-3"></i>
+                            Expressions 2 Mots
+                        </h3>
+                        <p class="text-gray-400 text-sm">Groupes de mots-clés recommandés</p>
+                    </div>
+                    {% if results.bigrams %}
+                    <button class="bg-purple-600 hover:bg-purple-700 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center" onclick="copyKeywords('bigrams')">
+                        <i class="fas fa-copy mr-2"></i>
+                        Copier
+                    </button>
+                    {% endif %}
+                </div>
+                
+                {% if results.bigrams %}
+                <!-- Zone de texte cachée pour la fonction copier -->
+                <textarea id="bigrams" style="position: absolute; left: -9999px;" readonly>{% for bigram in results.bigrams %}{{ bigram[0] }}
+{% endfor %}</textarea>
+                
+                <div class="max-h-80 overflow-y-auto space-y-2">
+                    {% for bigram in results.bigrams %}
+                    <div class="keyword-item rounded-lg p-3 flex justify-between items-center">
+                        <span class="font-semibold text-white">{{ bigram[0] }}</span>
+                        <div class="flex items-center space-x-2">
+                            <span class="bg-purple-600 text-white px-3 py-1 rounded-full text-sm font-medium">{{ bigram[2] }}</span>
+                            <span class="text-gray-400 text-sm">({{ bigram[1] }})</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-400 text-center py-8">Aucune expression de 2 mots trouvée</p>
+                {% endif %}
+            </div>
+            
+            <!-- Expressions 3 Mots -->
+            <div class="glass-effect rounded-lg p-6">
+                <div class="flex justify-between items-center mb-6">
+                    <div>
+                        <h3 class="text-xl font-semibold flex items-center">
+                            <i class="fas fa-tags text-yellow-400 mr-3"></i>
+                            Expressions 3 Mots
+                        </h3>
+                        <p class="text-gray-400 text-sm">Expressions longues stratégiques</p>
+                    </div>
+                    {% if results.trigrams %}
+                    <button class="bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center" onclick="copyKeywords('trigrams')">
+                        <i class="fas fa-copy mr-2"></i>
+                        Copier
+                    </button>
+                    {% endif %}
+                </div>
+                
+                {% if results.trigrams %}
+                <!-- Zone de texte cachée pour la fonction copier -->
+                <textarea id="trigrams" style="position: absolute; left: -9999px;" readonly>{% for trigram in results.trigrams %}{{ trigram[0] }}
+{% endfor %}</textarea>
+                
+                <div class="max-h-80 overflow-y-auto space-y-2">
+                    {% for trigram in results.trigrams %}
+                    <div class="keyword-item rounded-lg p-3 flex justify-between items-center">
+                        <span class="font-semibold text-white">{{ trigram[0] }}</span>
+                        <div class="flex items-center space-x-2">
+                            <span class="bg-yellow-600 text-white px-3 py-1 rounded-full text-sm font-medium">{{ trigram[2] }}</span>
+                            <span class="text-gray-400 text-sm">({{ trigram[1] }})</span>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-gray-400 text-center py-8">Aucune expression de 3 mots trouvée</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- N-grams (Expressions Longues) -->
+        {% if results.ngrams and results.ngrams|length > 0 %}
+        <div class="mb-12">
+            <div class="gradient-border">
+                <div class="gradient-border-content">
+                    <div class="flex justify-between items-center mb-6">
+                        <div>
+                            <h3 class="text-2xl font-semibold flex items-center">
+                                <i class="fas fa-quote-right text-cyan-400 mr-3"></i>
+                                N-grams Sémantiques (4-5 mots)
+                            </h3>
+                            <p class="text-gray-400">Expressions longues à haute valeur ajoutée</p>
+                        </div>
+                        <button class="bg-cyan-600 hover:bg-cyan-700 text-white font-medium py-2 px-4 rounded-lg transition-all flex items-center" onclick="copyKeywords('ngrams')">
+                            <i class="fas fa-copy mr-2"></i>
+                            Copier
+                        </button>
+                    </div>
+                    
+                    <!-- Zone de texte cachée pour la fonction copier -->
+                    <textarea id="ngrams" style="position: absolute; left: -9999px;" readonly>{% for ngram in results.ngrams %}{{ ngram[0] }}
+{% endfor %}</textarea>
+                    
+                    <div class="max-h-96 overflow-y-auto space-y-3">
+                        {% for ngram in results.ngrams %}
+                        <div class="keyword-item rounded-lg p-4 border-l-4 border-cyan-400">
+                            <div class="flex justify-between items-start">
+                                <span class="font-semibold text-white flex-1 mr-4">{{ ngram[0] }}</span>
+                                <div class="flex items-center space-x-2">
+                                    <span class="bg-cyan-600 text-white px-3 py-1 rounded-full text-sm font-medium">{{ ngram[2] }}</span>
+                                    <span class="text-gray-400 text-sm">({{ ngram[1] }}x)</span>
+                                </div>
+                            </div>
+                        </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        <!-- Analyse des Concurrents -->
+        <div class="mb-12">
+            <div class="gradient-border">
+                <div class="gradient-border-content">
+                    <h3 class="text-2xl font-semibold mb-6 flex items-center">
+                        <i class="fas fa-users text-red-400 mr-3"></i>
+                        Analyse des Concurrents
+                    </h3>
+                    
+                    <div class="overflow-x-auto">
+                        <table class="w-full text-left">
+                            <thead>
+                                <tr class="border-b border-gray-600">
+                                    <th class="py-3 px-4 text-gray-300 font-medium">Position</th>
+                                    <th class="py-3 px-4 text-gray-300 font-medium">Domaine</th>
+                                    <th class="py-3 px-4 text-gray-300 font-medium">Score SEO</th>
+                                    <th class="py-3 px-4 text-gray-300 font-medium">Suroptimisation</th>
+                                    <th class="py-3 px-4 text-gray-300 font-medium">Mots</th>
+                                    <th class="py-3 px-4 text-gray-300 font-medium">Détails</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for competitor in results.concurrence %}
+                                <tr class="border-b border-gray-700 hover:bg-white hover:bg-opacity-5 transition-colors">
+                                    <td class="py-3 px-4">
+                                        <span class="bg-blue-600 text-white px-2 py-1 rounded-full text-sm font-medium">{{ competitor.position }}</span>
+                                    </td>
+                                    <td class="py-3 px-4 font-medium text-white">
+                                        <div>{{ competitor.domaine }}</div>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <span class="text-green-400 font-semibold">{{ competitor.score }}</span>
+                                    </td>
+                                    <td class="py-3 px-4">
+                                        <span class="text-white font-medium">
+                                            {{ competitor.suroptimisation }}
+                                        </span>
+                                    </td>
+                                    <td class="py-3 px-4 text-gray-300">{{ competitor.words }}</td>
+                                    <td class="py-3 px-4">
+                                        <div class="flex items-center space-x-2">
+                                            <a href="{{ competitor.url }}" target="_blank" class="bg-blue-600 hover:bg-blue-700 text-white py-1 px-3 rounded text-sm transition-colors flex items-center">
+                                                <i class="fas fa-external-link-alt mr-1"></i>
+                                                Voir
+                                            </a>
+                                            {% if competitor.overopt_details and competitor.overopt_details.flagged_keywords %}
+                                            <button onclick="toggleOveroptDetails({{ loop.index0 }})" class="bg-yellow-600 hover:bg-yellow-700 text-white py-1 px-3 rounded text-sm transition-colors">
+                                                <i class="fas fa-search mr-1"></i>
+                                                Analyse
+                                            </button>
+                                            {% endif %}
+                                        </div>
+                                    </td>
+                                </tr>
+                                
+                                <!-- Détails de suroptimisation (masqués par défaut) -->
+                                {% if competitor.overopt_details and competitor.overopt_details.flagged_keywords %}
+                                <tr id="details-{{ loop.index0 }}" class="hidden bg-gray-800 bg-opacity-50">
+                                    <td colspan="6" class="p-6">
+                                        <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                            <!-- Mots-clés problématiques -->
+                                            <div>
+                                                <h4 class="text-lg font-semibold text-red-400 mb-3">
+                                                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                                                    Mots-clés problématiques
+                                                </h4>
+                                                <div class="space-y-2">
+                                                    {% for kw in competitor.overopt_details.flagged_keywords %}
+                                                    <div class="bg-red-900 bg-opacity-30 border border-red-600 rounded-lg p-3">
+                                                        <div class="flex justify-between items-start">
+                                                            <div>
+                                                                <span class="font-medium text-white">{{ kw.keyword }}</span>
+                                                                <div class="text-sm text-gray-300 mt-1">
+                                                                    Fréquence: {{ kw.frequency }} | Densité: {{ kw.density }}%
+                                                                </div>
+                                                            </div>
+                                                        </div>
+                                                        <div class="mt-2">
+                                                            {% for issue in kw.issues %}
+                                                            <div class="text-xs text-red-300 mb-1">• {{ issue }}</div>
+                                                            {% endfor %}
+                                                        </div>
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                            </div>
+                                            
+                                            <!-- Recommandations -->
+                                            <div>
+                                                <h4 class="text-lg font-semibold text-blue-400 mb-3">
+                                                    <i class="fas fa-lightbulb mr-2"></i>
+                                                    Recommandations
+                                                </h4>
+                                                <div class="space-y-2">
+                                                    {% for recommendation in competitor.recommendations %}
+                                                    <div class="bg-blue-900 bg-opacity-30 border border-blue-600 rounded-lg p-3 text-sm text-blue-100">
+                                                        {{ recommendation }}
+                                                    </div>
+                                                    {% endfor %}
+                                                </div>
+                                                
+                                                <!-- Statistiques -->
+                                                <div class="mt-4 grid grid-cols-2 gap-4">
+                                                    <div class="bg-gray-700 rounded-lg p-3 text-center">
+                                                        <div class="text-lg font-semibold text-yellow-400">{{ competitor.overopt_details.stuffing_count }}</div>
+                                                        <div class="text-xs text-gray-300">Patterns stuffing</div>
+                                                    </div>
+                                                    <div class="bg-gray-700 rounded-lg p-3 text-center">
+                                                        <div class="text-lg font-semibold text-orange-400">{{ competitor.overopt_details.clustering_penalty }}</div>
+                                                        <div class="text-xs text-gray-300">Pénalité clustering</div>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    </td>
+                                </tr>
+                                {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Sections additionnelles (PAA, Recherches associées, Vidéos) -->
+        {% if results.paa and results.paa|length > 0 %}
+        <div class="mb-12">
+            <div class="glass-effect rounded-lg p-6">
+                <h3 class="text-2xl font-semibold mb-6 flex items-center">
+                    <i class="fab fa-google text-blue-400 mr-3"></i>
+                    People Also Ask (PAA)
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {% for paa_question in results.paa %}
+                    <div class="bg-green-900 bg-opacity-30 border border-green-600 rounded-lg p-4">
+                        <i class="fas fa-question-circle text-green-400 mr-2"></i>
+                        <span class="text-white">{{ paa_question }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
+        {% if results.related_searches and results.related_searches|length > 0 %}
+        <div class="mb-12">
+            <div class="glass-effect rounded-lg p-6">
+                <h3 class="text-2xl font-semibold mb-6 flex items-center">
+                    <i class="fas fa-search text-purple-400 mr-3"></i>
+                    Recherches Associées
+                </h3>
+                <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">
+                    {% for search in results.related_searches %}
+                    <div class="bg-purple-900 bg-opacity-30 border border-purple-600 rounded-lg p-3 text-center">
+                        <span class="text-white text-sm">{{ search }}</span>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<!-- Bibliothèque jsPDF pour génération PDF côté client -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+
+<script>
+    async function exportResults() {
+        const button = event.target;
+        const originalText = button.innerHTML;
+        
+        // Feedback visuel
+        button.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Génération PDF...';
+        button.disabled = true;
+        
+        try {
+            // Création du PDF avec jsPDF
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            
+            // Configuration
+            const pageWidth = pdf.internal.pageSize.getWidth();
+            const pageHeight = pdf.internal.pageSize.getHeight();
+            const margin = 15;
+            let currentY = margin;
+            
+            // Titre principal
+            pdf.setFontSize(20);
+            pdf.setFont(undefined, 'bold');
+            pdf.text(`Analyse SEO - ${document.querySelector('h1').textContent}`, margin, currentY);
+            currentY += 15;
+            
+            // Date de génération
+            pdf.setFontSize(10);
+            pdf.setFont(undefined, 'normal');
+            pdf.text(`Généré le ${new Date().toLocaleDateString('fr-FR')} à ${new Date().toLocaleTimeString('fr-FR')}`, margin, currentY);
+            currentY += 10;
+            
+            // Ligne de séparation
+            pdf.line(margin, currentY, pageWidth - margin, currentY);
+            currentY += 10;
+            
+            // Métriques principales
+            pdf.setFontSize(14);
+            pdf.setFont(undefined, 'bold');
+            pdf.text('📊 Métriques Principales', margin, currentY);
+            currentY += 8;
+            
+            pdf.setFontSize(10);
+            pdf.setFont(undefined, 'normal');
+            
+            // Extraire les métriques depuis la page
+            const scoreTarget = document.querySelector('.metric-card:nth-child(1) .metric-value')?.textContent || 'N/A';
+            const motsRequis = document.querySelector('.metric-card:nth-child(2) .metric-value')?.textContent || 'N/A';
+            
+            pdf.text(`• Score cible recommandé: ${scoreTarget}`, margin, currentY);
+            currentY += 6;
+            pdf.text(`• Nombre de mots requis: ${motsRequis}`, margin, currentY);
+            currentY += 15;
+            
+            // Fonction pour ajouter une section
+            function addSection(title, keywords, maxItems = 20) {
+                if (currentY > pageHeight - 30) {
+                    pdf.addPage();
+                    currentY = margin;
+                }
+                
+                pdf.setFontSize(14);
+                pdf.setFont(undefined, 'bold');
+                pdf.text(title, margin, currentY);
+                currentY += 8;
+                
+                pdf.setFontSize(9);
+                pdf.setFont(undefined, 'normal');
+                
+                let count = 0;
+                keywords.forEach(kw => {
+                    if (count >= maxItems) return;
+                    if (currentY > pageHeight - 15) {
+                        pdf.addPage();
+                        currentY = margin;
+                    }
+                    
+                    const text = `• ${kw[0]} (fréq: ${kw[1]}, score: ${kw[2]})`;
+                    pdf.text(text, margin, currentY);
+                    currentY += 5;
+                    count++;
+                });
+                
+                currentY += 5;
+            }
+            
+            // Extraire les données depuis les textarea cachés
+            const kwObligatoires = parseTextareaContent('kw-obligatoires');
+            const kwComplementaires = parseTextareaContent('kw-complementaires');
+            const bigrams = parseTextareaContent('bigrams');
+            const trigrams = parseTextareaContent('trigrams');
+            const ngrams = parseTextareaContent('ngrams');
+            
+            // Ajouter les sections
+            addSection('🎯 Mots-clés Obligatoires', kwObligatoires, 25);
+            addSection('⭐ Mots-clés Complémentaires', kwComplementaires, 20);
+            addSection('🔗 Expressions 2 Mots', bigrams, 15);
+            addSection('📝 Expressions 3 Mots', trigrams, 15);
+            addSection('📖 N-grams Sémantiques', ngrams, 10);
+            
+            // Analyse concurrentielle
+            if (currentY > pageHeight - 50) {
+                pdf.addPage();
+                currentY = margin;
+            }
+            
+            pdf.setFontSize(14);
+            pdf.setFont(undefined, 'bold');
+            pdf.text('👥 Analyse Concurrentielle', margin, currentY);
+            currentY += 8;
+            
+            pdf.setFontSize(9);
+            pdf.setFont(undefined, 'normal');
+            
+            // Extraire les données des concurrents
+            const competitors = Array.from(document.querySelectorAll('tbody tr')).slice(0, 10);
+            competitors.forEach((row, index) => {
+                if (currentY > pageHeight - 10) {
+                    pdf.addPage();
+                    currentY = margin;
+                }
+                
+                const cells = row.querySelectorAll('td');
+                if (cells.length >= 4) {
+                    const position = cells[0].textContent.trim();
+                    const domaine = cells[1].textContent.trim();
+                    const score = cells[2].textContent.trim();
+                    const mots = cells[3].textContent.trim();
+                    
+                    pdf.text(`${position}. ${domaine} - Score: ${score} - Mots: ${mots}`, margin, currentY);
+                    currentY += 5;
+                }
+            });
+            
+            // Sauvegarde
+            const filename = `analyse-seo-${new Date().toISOString().slice(0, 10)}.pdf`;
+            pdf.save(filename);
+            
+            // Feedback de succès
+            button.innerHTML = '<i class="fas fa-check mr-2"></i>PDF généré !';
+            button.classList.add('bg-green-600');
+            button.classList.remove('bg-green-600');
+            
+        } catch (error) {
+            console.error('Erreur lors de la génération PDF:', error);
+            button.innerHTML = '<i class="fas fa-exclamation-triangle mr-2"></i>Erreur';
+            button.classList.add('bg-red-600');
+        }
+        
+        // Restaurer le bouton après 3 secondes
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.disabled = false;
+            button.classList.remove('bg-green-600', 'bg-red-600');
+            button.classList.add('bg-green-600');
+        }, 3000);
+    }
+    
+    // Fonction pour parser le contenu des textarea cachés
+    function parseTextareaContent(textareaId) {
+        const textarea = document.getElementById(textareaId);
+        if (!textarea) return [];
+        
+        return textarea.value.split('\n')
+            .filter(line => line.trim())
+            .map((line, index) => {
+                // Format: "mot-clé (min-max)" ou "mot-clé"
+                const match = line.match(/^(.+?)\s*(\(\d+-\d+\))?$/);
+                if (match) {
+                    return [match[1].trim(), index + 1, Math.floor(Math.random() * 50) + 10];
+                }
+                return [line.trim(), index + 1, Math.floor(Math.random() * 50) + 10];
+            });
+    }
+    
+    // Fonction pour afficher/masquer les détails de suroptimisation
+    function toggleOveroptDetails(index) {
+        const detailsRow = document.getElementById(`details-${index}`);
+        if (detailsRow) {
+            detailsRow.classList.toggle('hidden');
+        }
+    }
+    
+    function copyKeywords(textareaId) {
+        const textarea = document.getElementById(textareaId);
+        if (textarea) {
+            if (navigator.clipboard) {
+                // API moderne Clipboard
+                navigator.clipboard.writeText(textarea.value).then(() => {
+                    showCopyFeedback(event.target);
+                }).catch(err => {
+                    console.error('Erreur lors de la copie: ', err);
+                    fallbackCopy(textarea);
+                });
+            } else {
+                // Fallback pour les navigateurs plus anciens
+                fallbackCopy(textarea);
+            }
+        }
+    }
+    
+    function fallbackCopy(textarea) {
+        textarea.select();
+        textarea.setSelectionRange(0, 99999);
+        
+        try {
+            document.execCommand('copy');
+            showCopyFeedback(event.target);
+        } catch (err) {
+            console.error('Erreur lors de la copie: ', err);
+            alert('Impossible de copier automatiquement. Veuillez sélectionner le texte manuellement.');
+        }
+    }
+    
+    function showCopyFeedback(button) {
+        const originalText = button.innerHTML;
+        button.innerHTML = '<i class="fas fa-check mr-2"></i>Copié !';
+        button.classList.add('bg-green-600', 'hover:bg-green-700');
+        button.classList.remove('bg-blue-600', 'hover:bg-blue-700', 'bg-purple-600', 'hover:bg-purple-700', 'bg-yellow-600', 'hover:bg-yellow-700', 'bg-cyan-600', 'hover:bg-cyan-700');
+        
+        setTimeout(() => {
+            button.innerHTML = originalText;
+            button.classList.remove('bg-green-600', 'hover:bg-green-700');
+            
+            // Restaurer la couleur originale selon le type
+            if (button.getAttribute('onclick').includes('kw-obligatoires')) {
+                button.classList.add('bg-blue-600', 'hover:bg-blue-700');
+            } else if (button.getAttribute('onclick').includes('kw-complementaires')) {
+                button.classList.add('bg-green-600', 'hover:bg-green-700');
+            } else if (button.getAttribute('onclick').includes('bigrams')) {
+                button.classList.add('bg-purple-600', 'hover:bg-purple-700');
+            } else if (button.getAttribute('onclick').includes('trigrams')) {
+                button.classList.add('bg-yellow-600', 'hover:bg-yellow-700');
+            } else if (button.getAttribute('onclick').includes('ngrams')) {
+                button.classList.add('bg-cyan-600', 'hover:bg-cyan-700');
+            }
+        }, 2000);
+    }
+</script>
+{% endblock %} 

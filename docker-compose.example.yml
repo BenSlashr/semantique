@@ -1,0 +1,28 @@
+version: '3.8'
+
+services:
+  seo-analyzer:
+    build: .
+    container_name: seo-analyzer
+    restart: unless-stopped
+    environment:
+      - ROOT_PATH=/seo-analyzer
+      - SERP_API_KEY=${SERP_API_KEY}
+      - VALUESERP_API_KEY=${VALUESERP_API_KEY}
+    ports:
+      - "8001:8000"
+    volumes:
+      - ./.env:/app/.env:ro
+    networks:
+      - seo-tools-network
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.seo-analyzer.rule=Host(`outils.agence-slashr.fr`) && PathPrefix(`/seo-analyzer`)"
+      - "traefik.http.routers.seo-analyzer.entrypoints=websecure"
+      - "traefik.http.routers.seo-analyzer.tls.certresolver=letsencrypt"
+      - "traefik.http.middlewares.seo-analyzer-stripprefix.stripprefix.prefixes=/seo-analyzer"
+      - "traefik.http.routers.seo-analyzer.middlewares=seo-analyzer-stripprefix"
+
+networks:
+  seo-tools-network:
+    external: true 

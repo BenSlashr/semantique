@@ -1,0 +1,136 @@
+<!DOCTYPE html>
+<html lang="fr" class="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Analyse Sémantique SEO{% endblock %}</title>
+    
+    <!-- Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Font Awesome -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    
+    <script>
+        tailwind.config = {
+            darkMode: 'class',
+            theme: {
+                extend: {
+                    colors: {
+                        'slashr-dark': '#1a1a1a',
+                        'slashr-darker': '#111111',
+                        'slashr-blue': '#3b82f6',
+                        'slashr-green': '#10b981',
+                    }
+                }
+            }
+        }
+    </script>
+    
+    <style>
+        body {
+            background: linear-gradient(135deg, #1a1a1a 0%, #111111 100%);
+            min-height: 100vh;
+        }
+        
+        .gradient-border {
+            background: linear-gradient(90deg, #3b82f6, #10b981);
+            padding: 2px;
+            border-radius: 12px;
+        }
+        
+        .gradient-border-content {
+            background: #1a1a1a;
+            border-radius: 10px;
+            padding: 1.5rem;
+        }
+        
+        .glass-effect {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        
+        .keyword-item {
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            transition: all 0.3s ease;
+        }
+        
+        .keyword-item:hover {
+            background: rgba(255, 255, 255, 0.1);
+            transform: translateX(2px);
+        }
+    </style>
+    
+    {% block extra_css %}{% endblock %}
+</head>
+<body class="bg-slashr-dark text-white">
+    <!-- Navigation -->
+    <nav class="bg-slashr-darker border-b border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div class="flex justify-between items-center h-16">
+                <!-- Logo -->
+                <div class="flex items-center">
+                    <img src="https://agence-slashr.fr/wp-content/uploads/2023/10/slashr-logo-white.svg" alt="SLASHR" class="h-8 w-auto">
+                    <span class="ml-4 text-xl font-semibold bg-gradient-to-r from-blue-400 to-green-400 bg-clip-text text-transparent">
+                        Analyse Sémantique SEO
+                    </span>
+                </div>
+                
+                <!-- Navigation Links -->
+                <div class="hidden md:block">
+                    <div class="ml-10 flex items-baseline space-x-4">
+                        <a href="https://outils.agence-slashr.fr/" 
+                           class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                            Nos outils SEO
+                        </a>
+                        <a href="https://agence-slashr.fr/seo/" 
+                           class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                            Agence SEO à Lille
+                        </a>
+                        <a href="{{ root_path }}/help" 
+                           class="text-gray-300 hover:text-white px-3 py-2 rounded-md text-sm font-medium transition-colors">
+                            Aide
+                        </a>
+                    </div>
+                </div>
+                
+                <!-- Mobile menu button -->
+                <div class="md:hidden">
+                    <button id="mobile-menu-button" class="text-gray-400 hover:text-white focus:outline-none focus:ring-2 focus:ring-white">
+                        <i class="fas fa-bars text-xl"></i>
+                    </button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Mobile menu -->
+        <div id="mobile-menu" class="md:hidden hidden">
+            <div class="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-slashr-darker">
+                <a href="https://outils.agence-slashr.fr/" class="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                    Nos outils SEO
+                </a>
+                <a href="https://agence-slashr.fr/seo/" class="text-gray-300 hover:text-white block px-3 py-2 rounded-md text-base font-medium">
+                    Agence SEO à Lille
+                </a>
+             
+            </div>
+        </div>
+    </nav>
+
+    <!-- Contenu principal -->
+    <main>
+        {% block content %}{% endblock %}
+    </main>
+
+    <script>
+        // Mobile menu toggle
+        document.getElementById('mobile-menu-button').addEventListener('click', function() {
+            const mobileMenu = document.getElementById('mobile-menu');
+            mobileMenu.classList.toggle('hidden');
+        });
+    </script>
+    
+    {% block extra_js %}{% endblock %}
+</body>
+</html> 
