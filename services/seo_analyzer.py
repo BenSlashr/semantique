@@ -24,12 +24,77 @@ from nltk.tokenize import word_tokenize
 class SEOAnalyzer:
     def __init__(self):
         self.french_stopwords = set(stopwords.words('french'))
-        self.french_stopwords.update([
-            'le', 'la', 'les', 'un', 'une', 'des', 'du', 'de', 'et', 'ou', 'est', 'sont',
-            'dans', 'sur', 'avec', 'par', 'pour', 'sans', 'sous', 'vers', 'chez',
-            'plus', 'très', 'bien', 'tout', 'tous', 'toute', 'toutes', 'que', 'qui',
-            'quoi', 'dont', 'où', 'comment', 'pourquoi', 'quand'
-        ])
+        
+        # Liste étendue de stopwords français incluant connecteurs et mots de liaison
+        extended_stopwords = [
+            # Articles et déterminants
+            'le', 'la', 'les', 'un', 'une', 'des', 'du', 'de', 'ce', 'cette', 'ces', 'cet',
+            'mon', 'ma', 'mes', 'ton', 'ta', 'tes', 'son', 'sa', 'ses', 'notre', 'nos', 'votre', 'vos', 'leur', 'leurs',
+            
+            # Conjonctions et connecteurs logiques
+            'et', 'ou', 'ni', 'mais', 'car', 'donc', 'or', 'cependant', 'néanmoins', 'toutefois', 'pourtant',
+            'ainsi', 'alors', 'aussi', 'également', 'de même', 'par ailleurs', 'en outre', 'en plus',
+            'd ailleurs', 'par contre', 'en revanche', 'au contraire', 'tandis que', 'alors que',
+            
+            # Mots interrogatifs et relatifs
+            'que', 'qui', 'quoi', 'dont', 'où', 'comment', 'pourquoi', 'quand', 'combien',
+            'quel', 'quelle', 'quels', 'quelles', 'lequel', 'laquelle', 'lesquels', 'lesquelles',
+            
+            # Prépositions et locutions prépositionnelles
+            'dans', 'sur', 'avec', 'par', 'pour', 'sans', 'sous', 'vers', 'chez', 'entre', 'parmi',
+            'depuis', 'pendant', 'durant', 'après', 'avant', 'devant', 'derrière', 'près', 'loin',
+            'à côté', 'au lieu', 'grâce à', 'face à', 'selon', 'malgré', 'contre', 'envers',
+            'au dessus', 'au dessous', 'à travers', 'autour', 'le long', 'au cours',
+            
+            # Adverbes de liaison et de temps
+            'plus', 'moins', 'très', 'bien', 'mal', 'mieux', 'beaucoup', 'peu', 'assez', 'trop',
+            'encore', 'déjà', 'toujours', 'jamais', 'souvent', 'parfois', 'quelquefois',
+            'maintenant', 'aujourd hui', 'hier', 'demain', 'bientôt', 'tard', 'tôt',
+            'puis', 'ensuite', 'enfin', 'finalement', 'premièrement', 'deuxièmement',
+            'd abord', 'en premier', 'en dernier', 'en fin', 'au début', 'à la fin',
+            
+            # Quantificateurs et intensificateurs
+            'tout', 'tous', 'toute', 'toutes', 'chaque', 'plusieurs', 'quelques', 'certains', 'certaines',
+            'autre', 'autres', 'même', 'mêmes', 'tel', 'telle', 'tels', 'telles',
+            'aucun', 'aucune', 'nul', 'nulle', 'personne', 'rien', 'quelqu un', 'quelque chose',
+            
+            # Verbes auxiliaires et modaux
+            'est', 'sont', 'était', 'étaient', 'sera', 'seront', 'avoir', 'être', 'faire', 'dire',
+            'aller', 'voir', 'savoir', 'pouvoir', 'vouloir', 'venir', 'falloir', 'devoir', 'prendre',
+            'peut', 'peuvent', 'doit', 'doivent', 'veut', 'veulent', 'va', 'vont',
+            
+            # Pronoms
+            'il', 'elle', 'nous', 'vous', 'ils', 'elles', 'je', 'tu', 'me', 'te', 'se', 'lui', 'leur',
+            'moi', 'toi', 'soi', 'eux', 'y', 'en', 'cela', 'ça', 'celui', 'celle', 'ceux', 'celles',
+            
+            # Négations et affirmations
+            'ne', 'pas', 'non', 'oui', 'si', 'point', 'guère', 'jamais', 'rien', 'personne',
+            
+            # Expressions de transition courantes
+            'par exemple', 'c est à dire', 'en effet', 'en fait', 'en réalité', 'au fait',
+            'à vrai dire', 'pour ainsi dire', 'si l on peut dire', 'en quelque sorte',
+            'd une part', 'd autre part', 'en premier lieu', 'en second lieu',
+            'par conséquent', 'en conséquence', 'par suite', 'de ce fait',
+            'en somme', 'en résumé', 'en conclusion', 'pour conclure', 'bref',
+            
+            # Locutions adverbiales
+            'à peu près', 'à peine', 'tout à fait', 'tout de même', 'quand même',
+            'en même temps', 'à la fois', 'de plus en plus', 'de moins en moins',
+            'peu à peu', 'petit à petit', 'de temps en temps', 'de temps à autre',
+            
+            # Mots de politesse et formules
+            'merci', 'svp', 's il vous plaît', 'excusez moi', 'pardon', 'bonjour', 'bonsoir',
+            'salut', 'au revoir', 'à bientôt', 'cordialement', 'sincèrement',
+            
+            # Prépositions composées
+            'au', 'aux', 'à', 'en', 'du', 'des', 'de la', 'de l',
+            
+            # Expressions temporelles
+            'au moment', 'à l époque', 'à cette époque', 'en ce moment', 'à présent',
+            'actuellement', 'de nos jours', 'à l heure actuelle'
+        ]
+        
+        self.french_stopwords.update(extended_stopwords)
         
         # Cache des stop words pour optimisation des validations
         self.validation_stop_words = frozenset({
@@ -48,15 +113,64 @@ class SEOAnalyzer:
         # Cache des exceptions SEO
         self.seo_exceptions = frozenset({'seo', 'web', 'app', 'cms', 'api', 'roi', 'kpi', 'b2b', 'b2c'})
         
-        # Cache des patterns invalides
+        # Cache des patterns invalides étendus
         self.invalid_bigram_patterns = frozenset([
-            'à la', 'à le', 'à les', 'de la', 'de le', 'de les', 'du côté',
-            'en tant', 'au niveau', 'par rapport', 'grâce à', 'face à',
-            'selon les', 'selon le', 'selon la', 'parmi les', 'parmi le'
+            # Prépositions + articles
+            'à la', 'à le', 'à les', 'de la', 'de le', 'de les', 'du côté', 'au niveau',
+            'en tant', 'par rapport', 'grâce à', 'face à', 'selon les', 'selon le', 'selon la',
+            'parmi les', 'parmi le', 'au sein', 'au cours', 'au lieu', 'en plus', 'en effet',
+            
+            # Connecteurs logiques
+            'ainsi que', 'alors que', 'tandis que', 'bien que', 'quand même', 'tout de',
+            'de même', 'par ailleurs', 'en outre', 'd ailleurs', 'par contre', 'en revanche',
+            'au contraire', 'par conséquent', 'en conséquence', 'de ce', 'en somme',
+            
+            # Quantificateurs vides
+            'quelques uns', 'certains de', 'plusieurs de', 'beaucoup de', 'peu de', 'assez de',
+            'trop de', 'plus de', 'moins de', 'autant de', 'tant de',
+            
+            # Expressions temporelles vides
+            'au moment', 'à l époque', 'en ce', 'à présent', 'de nos', 'à cette',
+            'pendant que', 'durant que', 'depuis que', 'avant que', 'après que',
+            
+            # Mots interrogatifs + prépositions
+            'quels sont', 'quelle est', 'quel est', 'quelles sont', 'comment se',
+            'pourquoi les', 'où se', 'quand les', 'combien de',
+            
+            # Expressions courantes vides de sens
+            'aussi bien', 'par exemple', 'en fait', 'en réalité', 'à vrai',
+            'tout à', 'quand même', 'tout de', 'petit à', 'peu à',
+            'de temps', 'en temps', 'à côté', 'au lieu', 'grâce à'
         ])
         
-        self.invalid_trigram_starts = frozenset(['il est', 'elle est', 'nous sommes', 'vous êtes', 'ils sont', 'c est'])
-        self.invalid_trigram_ends = frozenset(['de plus', 'en plus', 'en effet', 'par exemple', 'en fait'])
+        self.invalid_trigram_starts = frozenset([
+            # Pronoms + verbes être/avoir
+            'il est', 'elle est', 'nous sommes', 'vous êtes', 'ils sont', 'elles sont', 'c est', 'ce sont',
+            'il a', 'elle a', 'ils ont', 'elles ont', 'nous avons', 'vous avez', 'on a', 'on est',
+            
+            # Expressions interrogatives
+            'qu est ce', 'est ce que', 'comment est', 'pourquoi est', 'où est', 'quand est',
+            'quel est le', 'quelle est la', 'quels sont les', 'quelles sont les',
+            
+            # Connecteurs en début
+            'ainsi que les', 'alors que les', 'bien que les', 'comme les', 'si les',
+            'lorsque les', 'pendant que les', 'après que les', 'avant que les'
+        ])
+        
+        self.invalid_trigram_ends = frozenset([
+            # Connecteurs en fin
+            'de plus en', 'en plus de', 'en effet de', 'par exemple de', 'en fait de',
+            'ainsi que de', 'alors que de', 'bien que de', 'grâce à la', 'face à la',
+            'selon les experts', 'parmi les plus', 'au sein de', 'au cours de',
+            
+            # Expressions temporelles vides
+            'à cette époque', 'en ce moment', 'à l heure', 'de nos jours', 'actuellement en',
+            'pendant ce temps', 'en même temps', 'à la fois', 'tout de même',
+            
+            # Quantificateurs vides
+            'beaucoup de plus', 'peu de plus', 'assez de plus', 'trop de plus',
+            'plus de la', 'moins de la', 'autant de la'
+        ])
         
         # Cache regex compilées pour éviter recompilation
         self.regex_punctuation = re.compile(r'[^\w\s]')
@@ -151,6 +265,9 @@ class SEOAnalyzer:
         if hasattr(self, '_text_cache') and text_hash in self._text_cache:
             return self._text_cache[text_hash]
         
+        # Filtrage des patterns techniques/CSS/SVG avant nettoyage
+        text = self._filter_technical_content(text)
+        
         # Utilisation des regex précompilées
         cleaned = self.regex_punctuation.sub(' ', text.lower())
         cleaned = self.regex_whitespace.sub(' ', cleaned).strip()
@@ -162,6 +279,65 @@ class SEOAnalyzer:
             self._text_cache[text_hash] = cleaned
         
         return cleaned
+    
+    def _filter_technical_content(self, text: str) -> str:
+        """Filtre le contenu technique (CSS, SVG, code) du texte"""
+        import re
+        
+        # Patterns CSS/SVG/techniques à exclure
+        technical_patterns = [
+            # Séquences numériques techniques (comme "000 stroke width 0px")
+            r'\b\d{3,}\s+\w+\s+\w+\s+\d+px\b',  # Pattern spécifique "000 stroke width 0px"
+            r'\b\d+\s+stroke\s+width\s+\d+px\b', # Pattern général stroke width
+            r'\b\d+\s+fill\s+\d+\b',             # Pattern fill numérique
+            
+            # CSS properties et valeurs
+            r'\b\d+px\b',  # pixels
+            r'\b\d+%\b',   # pourcentages (sauf si dans contexte métier)
+            r'\b\d+rem\b', # rem units
+            r'\b\d+em\b',  # em units
+            r'\brgb\([^)]+\)',  # couleurs RGB
+            r'\b#[0-9a-fA-F]{3,6}\b',  # couleurs hex
+            r'\bstroke\b(?!\s+(?:de|d|du))',  # SVG stroke (sauf "stroke de")
+            r'\bfill\b(?!\s+(?:de|d|du))',    # SVG fill (sauf "fill de")
+            r'\bwidth\s*:\s*\d+',  # width CSS
+            r'\bheight\s*:\s*\d+', # height CSS
+            r'\bmargin\s*:\s*\d+',  # margin CSS
+            r'\bpadding\s*:\s*\d+', # padding CSS
+            r'\bborder\s*:\s*\d+',  # border CSS
+            r'\bbackground\s*:\s*\w+', # background CSS
+            
+            # SVG spécifiques
+            r'\bviewBox\b',
+            r'\bclipPath\b',
+            r'\bstroke-width\b',
+            r'\bstroke-dasharray\b',
+            r'\bfill-rule\b',
+            
+            # Attributs HTML techniques
+            r'\bclass\s*=\s*["\'][^"\']*["\']',
+            r'\bid\s*=\s*["\'][^"\']*["\']',
+            r'\bdata-[a-zA-Z-]+\s*=\s*["\'][^"\']*["\']',
+            r'\baria-[a-zA-Z-]+\s*=\s*["\'][^"\']*["\']',
+            
+            # Codes techniques divers
+            r'\b[0-9a-fA-F]{8,}\b',  # Hash/ID longs
+            r'\b\w+\.\w+\.\w+\b',    # Noms de domaine/packages
+            r'\bversion\s*\d+\.\d+\b', # Numéros de version
+            
+            # Mots techniques isolés (plus ciblés)
+            r'\bcls\s+\d+\b',  # cls suivi de nombre
+            r'\b(svg|xml|css|js|json|api|url|uri|href|src|alt|meta|link|script|style|div|span|img|iframe|canvas|doctype)\b',
+        ]
+        
+        # Applique tous les patterns
+        for pattern in technical_patterns:
+            text = re.sub(pattern, ' ', text, flags=re.IGNORECASE)
+        
+        # Nettoie les espaces multiples
+        text = re.sub(r'\s+', ' ', text).strip()
+        
+        return text
     
     def _extract_required_keywords(self, content: str, query_words: List[str]) -> List[List[Any]]:
         """Extrait les mots-clés obligatoires avec leurs statistiques"""
@@ -299,34 +475,169 @@ class SEOAnalyzer:
         # Trie par importance décroissante
         ngram_keywords.sort(key=lambda x: x[2], reverse=True)
         
-        return ngram_keywords[:25]  # Top 25 n-grammes
+        # Phase 1: Déduplication et regroupement des expressions similaires
+        deduplicated_ngrams = self._deduplicate_ngrams(ngram_keywords)
+        
+        return deduplicated_ngrams[:25]  # Top 25 n-grammes dédupliqués
     
     def _is_valid_ngram(self, ngram: str) -> bool:
-        """Valide si un n-gramme long est pertinent"""
+        """Valide si un n-gramme long est pertinent - Version améliorée pour Phase 1"""
         words = ngram.split()
         
         # Doit avoir au moins 4 mots
         if len(words) < 4:
             return False
         
-        # Mots vides basiques à éviter
-        stop_words = {'de', 'du', 'des', 'le', 'la', 'les', 'un', 'une', 'et', 'ou', 'à', 'au', 'aux', 'en'}
+        # Mots vides étendus à éviter
+        stop_words = {
+            'de', 'du', 'des', 'le', 'la', 'les', 'un', 'une', 'et', 'ou', 'à', 'au', 'aux', 'en',
+            'dans', 'sur', 'avec', 'par', 'pour', 'sans', 'sous', 'vers', 'chez', 'depuis',
+            'pendant', 'après', 'avant', 'entre', 'contre', 'selon', 'malgré', 'durant'
+        }
         
-        # Ne doit pas commencer ou finir par un mot vide
+        # Mots de liaison qui rendent l'expression incomplète
+        incomplete_words = {'pour', 'après', 'avant', 'pendant', 'durant', 'selon', 'malgré', 'contre'}
+        
+        # Ne doit pas commencer ou finir par un mot vide ou incomplet
         if words[0] in stop_words or words[-1] in stop_words:
             return False
         
-        # Évite les n-grammes avec trop de mots vides (max 30%)
-        stop_word_count = sum(1 for word in words if word in stop_words)
-        if stop_word_count / len(words) > 0.3:
+        if words[0] in incomplete_words or words[-1] in incomplete_words:
             return False
         
-        # Évite les patterns trop répétitifs
-        unique_words = set(words)
-        if len(unique_words) < len(words) * 0.7:  # Au moins 70% de mots uniques
+        # Évite les n-grammes avec trop de mots vides (max 25% au lieu de 30%)
+        stop_word_count = sum(1 for word in words if word in stop_words)
+        if stop_word_count / len(words) > 0.25:
             return False
+        
+        # Évite les patterns trop répétitifs (75% au lieu de 70%)
+        unique_words = set(words)
+        if len(unique_words) < len(words) * 0.75:
+            return False
+        
+        # Évite les expressions avec des mots trop courts répétés
+        short_words = [word for word in words if len(word) <= 2]
+        if len(short_words) > len(words) * 0.3:  # Max 30% de mots très courts
+            return False
+        
+        # Bonus: Favorise les expressions avec des mots métier/techniques
+        technical_indicators = [
+            'formation', 'cursus', 'diplôme', 'certification', 'spécialisation',
+            'débouchés', 'carrière', 'métier', 'profession', 'emploi',
+            'compétences', 'skills', 'expertise', 'technique', 'méthode',
+            'stratégie', 'management', 'gestion', 'finance', 'marketing'
+        ]
+        
+        # Si contient des mots techniques, c'est plus susceptible d'être pertinent
+        has_technical_words = any(word.lower() in technical_indicators for word in words)
         
         return True
+    
+    def _deduplicate_ngrams(self, ngram_keywords: List[List[Any]]) -> List[List[Any]]:
+        """
+        Phase 1: Déduplication et regroupement des expressions similaires
+        
+        Stratégies implémentées:
+        1. Déduplication par chevauchement de mots
+        2. Regroupement des expressions similaires
+        3. Conservation de l'expression la plus représentative par groupe
+        """
+        if not ngram_keywords:
+            return []
+        
+        print(f"🔧 Déduplication: {len(ngram_keywords)} n-grams avant traitement")
+        
+        deduplicated = []
+        processed_groups = []
+        
+        for current_ngram, current_freq, current_importance in ngram_keywords:
+            current_words = set(current_ngram.split())
+            
+            # Chercher un groupe existant avec chevauchement significatif
+            found_group = False
+            
+            for group_idx, (group_ngram, group_freq, group_importance) in enumerate(processed_groups):
+                group_words = set(group_ngram.split())
+                
+                # Calculer le chevauchement (intersection / union) - Jaccard similarity
+                intersection = current_words & group_words
+                union = current_words | group_words
+                jaccard_similarity = len(intersection) / len(union) if union else 0
+                
+                # Calculer aussi le chevauchement simple (mots en commun / mots total)
+                min_length = min(len(current_words), len(group_words))
+                simple_overlap = len(intersection) / min_length if min_length > 0 else 0
+                
+                # Conditions de similarité plus flexibles:
+                # 1. Jaccard > 50% (expressions très similaires)
+                # 2. OU chevauchement simple > 60% (beaucoup de mots en commun)
+                # 3. OU même racine sémantique (école/écoles, commerce/commerciale)
+                is_similar = (jaccard_similarity > 0.5 or 
+                             simple_overlap > 0.6 or
+                             self._have_same_semantic_root(current_ngram, group_ngram))
+                
+                if is_similar:
+                    found_group = True
+                    
+                    # Garder l'expression la plus représentative (score le plus élevé)
+                    if current_importance > group_importance:
+                        # Remplacer l'expression du groupe par la nouvelle
+                        processed_groups[group_idx] = (current_ngram, current_freq + group_freq, current_importance)
+                        print(f"🔄 Remplacement: '{group_ngram}' → '{current_ngram}' (score: {group_importance} → {current_importance})")
+                    else:
+                        # Juste additionner la fréquence
+                        processed_groups[group_idx] = (group_ngram, group_freq + current_freq, group_importance)
+                        print(f"📈 Fusion: '{current_ngram}' dans '{group_ngram}' (fréq: {group_freq} + {current_freq})")
+                    break
+            
+            # Si aucun groupe similaire trouvé, créer un nouveau groupe
+            if not found_group:
+                processed_groups.append((current_ngram, current_freq, current_importance))
+        
+        # Convertir les groupes en format final
+        for ngram, freq, importance in processed_groups:
+            deduplicated.append([ngram, freq, importance])
+        
+        # Re-trier par importance après fusion
+        deduplicated.sort(key=lambda x: x[2], reverse=True)
+        
+        print(f"✅ Déduplication terminée: {len(ngram_keywords)} → {len(deduplicated)} n-grams (-{len(ngram_keywords) - len(deduplicated)})")
+        
+        return deduplicated
+    
+    def _have_same_semantic_root(self, ngram1: str, ngram2: str) -> bool:
+        """Détecte si deux n-grams ont la même racine sémantique"""
+        # Normalisation des variantes communes
+        semantic_groups = {
+            'école': ['école', 'écoles', 'ecole', 'ecoles'],
+            'commerce': ['commerce', 'commerciale', 'commerciales', 'commerciaux'],
+            'formation': ['formation', 'formations', 'formative', 'former'],
+            'étude': ['étude', 'études', 'étudiant', 'étudiants'],
+            'diplôme': ['diplôme', 'diplômes', 'diplômé', 'diplômés'],
+            'entreprise': ['entreprise', 'entreprises', 'entrepreneurial'],
+            'management': ['management', 'manager', 'managériale', 'gestion'],
+            'carrière': ['carrière', 'carrières', 'professionnel', 'profession'],
+            'bac': ['bac', 'baccalauréat', 'bachelor'],
+            'licence': ['licence', 'licences', 'licensing'],
+            'master': ['master', 'masters', 'mastère'],
+            'post': ['post', 'après', 'suite']
+        }
+        
+        words1 = set(ngram1.lower().split())
+        words2 = set(ngram2.lower().split())
+        
+        # Chercher des mots appartenant au même groupe sémantique
+        for root, variants in semantic_groups.items():
+            variants_set = set(variants)
+            
+            # Si les deux n-grams contiennent des variantes du même concept
+            if (words1 & variants_set) and (words2 & variants_set):
+                # Vérifier qu'ils ont aussi d'autres mots en commun
+                common_words = words1 & words2
+                if len(common_words) >= 2:  # Au moins 2 mots en commun
+                    return True
+        
+        return False
     
     def _extract_bigrams(self, content: str, query: str) -> List[List[Any]]:
         """Extrait les groupes de mots-clés de 2 mots avec analyse de leur importance - Version optimisée"""
@@ -479,7 +790,7 @@ class SEOAnalyzer:
         return True
     
     def _add_minmax_stats(self, keywords: List[List[Any]], organic_results: List[Dict[str, Any]]) -> List[List[Any]]:
-        """Ajoute les statistiques min-max d'occurrences pour chaque mot-clé - Version optimisée"""
+        """Calcule les recommandations statistiques d'occurrences basées sur les top performers"""
         enhanced_keywords = []
         
         # Cache pour éviter de retokeniser le même contenu plusieurs fois
@@ -491,10 +802,10 @@ class SEOAnalyzer:
             importance = keyword_info[2]
             keyword_lower = keyword.lower()
             
-            # Analyser les occurrences dans chaque page concurrente
+            # Analyser les occurrences dans chaque page concurrente (TOP 5 focus)
             occurrences = []
             
-            for i, result in enumerate(organic_results):
+            for i, result in enumerate(organic_results[:5]):  # Focus TOP 5
                 # Utilise le cache pour éviter retokenisation
                 if i not in content_cache:
                     content = result.get("content", "") + " " + result.get("title", "") + " " + result.get("h1", "") + " " + result.get("h2", "") + " " + result.get("h3", "")
@@ -504,18 +815,84 @@ class SEOAnalyzer:
                 if count > 0:  # Ne compter que les pages qui utilisent le mot-clé
                     occurrences.append(count)
             
-            if occurrences:
-                min_occ = min(occurrences)
-                max_occ = max(occurrences)
+            # Calcul statistiques recommandées
+            if len(occurrences) >= 2:
+                # Calculs statistiques réels
+                occurrences.sort()
+                median = self._calculate_median(occurrences)
+                q1, q3 = self._calculate_quartiles(occurrences)
+                
+                # Recommandation basée sur médiane +/- écart raisonnable
+                target_min = max(1, int(median * 0.85))  # -15% de la médiane
+                target_max = int(median * 1.15)          # +15% de la médiane
+                
+                # Ajustement si fourchette trop étroite
+                if target_max - target_min < 3:
+                    target_max = target_min + 3
+                    
+            elif len(occurrences) == 1:
+                # Une seule occurrence trouvée - estimation conservative
+                single_occ = occurrences[0]
+                target_min = max(1, int(single_occ * 0.8))
+                target_max = int(single_occ * 1.2)
+                median = single_occ
             else:
-                # Valeurs par défaut basées sur la fréquence globale
-                min_occ = max(1, freq // 3)
-                max_occ = freq * 2
+                # Aucune occurrence - estimation basée sur importance
+                if importance > 70:
+                    median = max(8, freq // 10)  # Mots très importants
+                elif importance > 40:
+                    median = max(4, freq // 20)  # Mots modérément importants
+                else:
+                    median = max(2, freq // 30)  # Mots moins importants
+                
+                target_min = max(1, median - 2)
+                target_max = median + 3
             
-            # Format : [mot-clé, fréquence, importance, min_occurrences, max_occurrences]
-            enhanced_keywords.append([keyword, freq, importance, min_occ, max_occ])
+            # Format : [mot-clé, médiane_recommandée, importance, fourchette_min, fourchette_max]
+            enhanced_keywords.append([keyword, median, importance, target_min, target_max])
         
         return enhanced_keywords
+    
+    def _calculate_median(self, values):
+        """Calcule la médiane d'une liste de valeurs"""
+        if not values:
+            return 0
+        values = sorted(values)
+        n = len(values)
+        if n % 2 == 0:
+            return (values[n//2 - 1] + values[n//2]) / 2
+        else:
+            return values[n//2]
+    
+    def _calculate_quartiles(self, values):
+        """Calcule Q1 et Q3 d'une liste de valeurs"""
+        if len(values) < 2:
+            return values[0] if values else 0, values[0] if values else 0
+        
+        values = sorted(values)
+        n = len(values)
+        
+        # Q1 (25ème percentile)
+        q1_pos = (n + 1) * 0.25
+        if q1_pos.is_integer():
+            q1 = values[int(q1_pos) - 1]
+        else:
+            lower = int(q1_pos) - 1
+            upper = lower + 1
+            weight = q1_pos - int(q1_pos)
+            q1 = values[lower] * (1 - weight) + values[min(upper, n-1)] * weight
+        
+        # Q3 (75ème percentile)
+        q3_pos = (n + 1) * 0.75
+        if q3_pos.is_integer():
+            q3 = values[int(q3_pos) - 1]
+        else:
+            lower = int(q3_pos) - 1
+            upper = lower + 1
+            weight = q3_pos - int(q3_pos)
+            q3 = values[lower] * (1 - weight) + values[min(upper, n-1)] * weight
+        
+        return int(q1), int(q3)
     
     def _generate_questions(self, query: str, keywords: List[List[Any]], paa_questions: List[str] = None) -> str:
         """Génère des questions pertinentes basées sur la requête, les mots-clés et les PAA"""

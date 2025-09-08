@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Request, Form, HTTPException, Query
+from fastapi import FastAPI, Request, Form, HTTPException, Query, APIRouter
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
@@ -17,17 +17,21 @@ load_dotenv()
 # Configuration du sous-chemin
 ROOT_PATH = os.getenv("ROOT_PATH", "/seo-analyzer")
 
+# Application principale
 app = FastAPI(
     title="API d'Analyse Sémantique SEO",
     description="API complète pour l'analyse sémantique SEO - Compatible avec tous vos outils",
     version="2.0.0",
     docs_url=f"{ROOT_PATH}/docs",
-    redoc_url=f"{ROOT_PATH}/redoc",
-    root_path=ROOT_PATH
+    redoc_url=f"{ROOT_PATH}/redoc"
 )
+
+# Sous-router pour gérer le préfixe
+seo_router = APIRouter(prefix=ROOT_PATH)
 
 # Configuration des templates et fichiers statiques
 templates = Jinja2Templates(directory="templates")
+# Les fichiers statiques doivent être accessibles sans le root_path car Traefik le gère
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 # Injection du root_path dans tous les templates
@@ -83,7 +87,7 @@ class AnalysisResponse(BaseModel):
 
 # === ROUTES WEB (EXISTANTES) ===
 
-@app.get("/", response_class=HTMLResponse)
+@seo_router.get("/", response_class=HTMLResponse)
 async def home(request: Request):
     """Page d'accueil avec le formulaire d'analyse"""
     return templates.TemplateResponse("index.html", {
@@ -91,7 +95,7 @@ async def home(request: Request):
         "root_path": ROOT_PATH
     })
 
-@app.get("/help", response_class=HTMLResponse)
+@seo_router.get("/help", response_class=HTMLResponse)
 async def help_page(request: Request):
     """Page d'aide pour comprendre les métriques"""
     return templates.TemplateResponse("help.html", {
@@ -99,7 +103,7 @@ async def help_page(request: Request):
         "root_path": ROOT_PATH
     })
 
-@app.post("/analyze")
+@seo_router.post("/analyze")
 async def analyze_query(
     request: Request,
     query: str = Form(...),
@@ -126,7 +130,7 @@ async def analyze_query(
 
 # === ROUTES API JSON ===
 
-@app.post("/api/v1/analyze")
+@seo_router.post("/api/v1/analyze")
 async def api_analyze_complete(request: AnalysisRequest):
     """
     🚀 ENDPOINT PRINCIPAL API - Analyse sémantique complète
@@ -214,7 +218,7 @@ async def api_analyze_complete(request: AnalysisRequest):
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Erreur d'analyse: {str(e)}")
 
-@app.get("/api/v1/analyze/{query}")
+@seo_router.get("/api/v1/analyze/{query}")
 async def api_analyze_get(
     query: str, 
     location: Optional[str] = Query("France", description="Localisation géographique"),
@@ -229,7 +233,7 @@ async def api_analyze_get(
     request_data = AnalysisRequest(query=query, location=location, language=language)
     return await api_analyze_complete(request_data)
 
-@app.get("/api/v1/competitors/{query}")
+@seo_router.get("/api/v1/competitors/{query}")
 async def api_get_competitors(
     query: str,
     location: Optional[str] = Query("France"),
@@ -270,7 +274,7 @@ async def api_get_competitors(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/v1/keywords/{query}")
+@seo_router.get("/api/v1/keywords/{query}")
 async def api_get_keywords(
     query: str,
     location: Optional[str] = Query("France"),
@@ -330,7 +334,7 @@ async def api_get_keywords(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/v1/metrics/{query}")
+@seo_router.get("/api/v1/metrics/{query}")
 async def api_get_metrics(
     query: str,
     location: Optional[str] = Query("France"), 
@@ -360,7 +364,7 @@ async def api_get_metrics(
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
 
-@app.get("/api/v1/health")
+@seo_router.get("/api/v1/health")
 async def api_health():
     """🏥 Vérification de santé de l'API"""
     return {
@@ -378,7 +382,7 @@ async def api_health():
         ]
     }
 
-@app.get("/api/v1/info")
+@seo_router.get("/api/v1/info")
 async def api_info():
     """ℹ️ Informations sur l'API"""
     return {
@@ -397,15 +401,44 @@ async def api_info():
     }
 
 # Ancien endpoint pour rétrocompatibilité 
-@app.get("/api/analyze/{query}")
+@seo_router.get("/api/analyze/{query}")
 async def api_analyze_legacy(query: str, location: Optional[str] = "France", language: Optional[str] = "fr"):
     """Endpoint legacy - utilisez /api/v1/analyze/{query} à la place"""
-    return await api_analyze_get(query, location, language)
+    request_data = AnalysisRequest(query=query, location=location, language=language)
+    return await api_analyze_complete(request_data)
 
-@app.get("/health")
+@seo_router.get("/health")
 async def health_check():
-    """Endpoint de vérification de santé (legacy)"""
-    return {"status": "OK", "message": "L'outil d'analyse SEO fonctionne parfaitement"}
+    """Vérification de la santé de l'application"""
+    return {"status": "healthy", "service": "SEO Analyzer API"}
+
+@seo_router.get("/debug")
+async def debug_config():
+    """Endpoint de diagnostic pour vérifier la configuration"""
+    import os
+    
+    # Récupération des variables d'environnement
+    serp_key = os.getenv("SERP_API_KEY")
+    valueserp_key = os.getenv("VALUESERP_API_KEY")
+    root_path = os.getenv("ROOT_PATH", "/seo-analyzer")
+    
+    config_status = {
+        "root_path": root_path,
+        "serp_api_configured": bool(serp_key),
+        "valueserp_api_configured": bool(valueserp_key),
+        "api_key_length": len(serp_key) if serp_key else 0,
+        "valueserp_key_length": len(valueserp_key) if valueserp_key else 0,
+        "environment_variables": {
+            "ROOT_PATH": root_path,
+            "SERP_API_KEY": f"{'✅ Configurée' if serp_key else '❌ Manquante'} ({len(serp_key) if serp_key else 0} caractères)",
+            "VALUESERP_API_KEY": f"{'✅ Configurée' if valueserp_key else '❌ Manquante'} ({len(valueserp_key) if valueserp_key else 0} caractères)"
+        }
+    }
+    
+    return config_status
+
+# Inclusion du sous-router dans l'application principale
+app.include_router(seo_router)
 
 if __name__ == "__main__":
     uvicorn.run(app, host="0.0.0.0", port=8000, reload=True) 

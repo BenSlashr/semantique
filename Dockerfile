@@ -26,4 +26,4 @@ EXPOSE 8000
 ENV ROOT_PATH=/seo-analyzer
 
 # Commande de démarrage
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/seo-analyzer"] 
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"] 
