@@ -15,7 +15,7 @@ import time
 load_dotenv()
 
 # Configuration du sous-chemin
-ROOT_PATH = os.getenv("ROOT_PATH", "/semantique")
+ROOT_PATH = os.getenv("ROOT_PATH", "")
 
 # Application principale
 app = FastAPI(
