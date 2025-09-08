@@ -14,8 +14,8 @@ import time
 # Charger les variables d'environnement
 load_dotenv()
 
-# Configuration du sous-chemin
-ROOT_PATH = os.getenv("ROOT_PATH", "")
+# Configuration du sous-chemin - Forcer à vide car reverse proxy gère le préfixe
+ROOT_PATH = ""  # os.getenv("ROOT_PATH", "")
 
 # Application principale
 app = FastAPI(
