@@ -22,8 +22,8 @@ COPY . .
 # Exposition du port
 EXPOSE 8000
 
-# Variable d'environnement pour le sous-chemin (vide car reverse proxy gère)
+# Variable d'environnement pour le sous-chemin (vide car --root-path uvicorn gère)
 ENV ROOT_PATH=
 
-# Commande de démarrage (sans --root-path car reverse proxy gère)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000"]
+# Commande de démarrage (--root-path pour les URLs des formulaires)
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--root-path", "/semantique"]

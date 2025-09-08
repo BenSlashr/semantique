@@ -37,8 +37,8 @@ app.mount("/static", StaticFiles(directory="static"), name="static")
 # Injection du root_path dans tous les templates
 @app.middleware("http")
 async def add_root_path_to_templates(request: Request, call_next):
-    # Ajouter root_path aux variables globales du template
-    request.state.root_path = ROOT_PATH
+    # Utiliser le root_path d'uvicorn (depuis headers ou config) au lieu de ROOT_PATH
+    request.state.root_path = request.scope.get("root_path", "")
     response = await call_next(request)
     return response
 
@@ -92,7 +92,7 @@ async def home(request: Request):
     """Page d'accueil avec le formulaire d'analyse"""
     return templates.TemplateResponse("index.html", {
         "request": request,
-        "root_path": ROOT_PATH
+        "root_path": request.scope.get("root_path", "")
     })
 
 @seo_router.get("/help", response_class=HTMLResponse)
@@ -100,7 +100,7 @@ async def help_page(request: Request):
     """Page d'aide pour comprendre les métriques"""
     return templates.TemplateResponse("help.html", {
         "request": request,
-        "root_path": ROOT_PATH
+        "root_path": request.scope.get("root_path", "")
     })
 
 @seo_router.post("/analyze")
@@ -122,7 +122,7 @@ async def analyze_query(
             "request": request,
             "results": analysis_results,
             "query": query,
-            "root_path": ROOT_PATH
+            "root_path": request.scope.get("root_path", "")
         })
         
     except Exception as e:
@@ -420,7 +420,7 @@ async def debug_config():
     # Récupération des variables d'environnement
     serp_key = os.getenv("SERP_API_KEY")
     valueserp_key = os.getenv("VALUESERP_API_KEY")
-    root_path = os.getenv("ROOT_PATH", "/seo-analyzer")
+    root_path = os.getenv("ROOT_PATH", "")
     
     config_status = {
         "root_path": root_path,
