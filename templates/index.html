@@ -22,39 +22,24 @@
                     <h2 class="text-2xl font-semibold mb-6 text-center">Analyse de mots-clés</h2>
                     
                     <form id="analysisForm" method="POST" action="{{ root_path }}/analyze">
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-                            <!-- Terme de recherche -->
-                            <div class="md:col-span-2">
-                                <label for="query" class="block text-sm font-medium text-gray-300 mb-2">
+                        <div class="flex justify-center mb-8">
+                            <!-- Terme de recherche centré -->
+                            <div class="w-full max-w-2xl">
+                                <label for="query" class="block text-sm font-medium text-gray-300 mb-2 text-center">
                                     Terme de recherche
                                 </label>
-                                <input 
-                                    type="text" 
-                                    id="query" 
-                                    name="query" 
+                                <input
+                                    type="text"
+                                    id="query"
+                                    name="query"
                                     required
                                     placeholder="Rechercher des mots-clés..."
                                     class="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white placeholder-gray-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
                                 >
                             </div>
-                            
-                            <!-- Type d'analyse -->
-                            <div>
-                                <label for="analysis_type" class="block text-sm font-medium text-gray-300 mb-2">
-                                    Type d'analyse
-                                </label>
-                                <select 
-                                    id="analysis_type" 
-                                    name="analysis_type"
-                                    class="w-full px-4 py-3 bg-gray-800 border border-gray-600 rounded-lg text-white focus:border-blue-500 focus:ring-2 focus:ring-blue-500 focus:outline-none transition-all"
-                                >
-                                    <option value="complete">Analyse complète</option>
-                                    <option value="keywords">Mots-clés uniquement</option>
-                                    <option value="competitors">Concurrents uniquement</option>
-                                </select>
-                            </div>
                         </div>
-                        
+
+
                         <div class="flex flex-col sm:flex-row gap-4 justify-center">
                             <button 
                                 type="submit" 
@@ -84,7 +69,7 @@
             <div class="text-center p-6 glass-effect rounded-lg">
                 <i class="fas fa-search text-4xl text-blue-400 mb-4"></i>
                 <h3 class="text-xl font-semibold mb-2">Analyse SERP</h3>
-                <p class="text-gray-400">Analysez les top 10 résultats Google pour votre requête</p>
+                <p class="text-gray-400">Analysez jusqu'à 30 résultats Google pour votre requête</p>
             </div>
             
             <div class="text-center p-6 glass-effect rounded-lg">
@@ -141,9 +126,9 @@
                     </button>
                     <div id="faq2" class="faq-content hidden px-6 pb-6">
                         <p class="text-gray-300 leading-relaxed">
-                            Notre outil d'analyse sémantique examine les pages les mieux classées sur Google pour votre requête cible. 
-                            Il extrait automatiquement les mots-clés, expressions, et champs lexicaux utilisés par vos concurrents, 
-                            puis calcule leur fréquence d'utilisation optimale. Vous obtenez ainsi une liste précise des termes à intégrer 
+                            Notre outil d'analyse sémantique examine jusqu'à 30 pages les mieux classées sur Google pour votre requête cible.
+                            Il extrait automatiquement les mots-clés, expressions, et champs lexicaux utilisés par vos concurrents,
+                            puis calcule leur fréquence d'utilisation optimale. Vous obtenez ainsi une liste précise des termes à intégrer
                             dans votre contenu pour améliorer votre positionnement SEO.
                         </p>
                     </div>

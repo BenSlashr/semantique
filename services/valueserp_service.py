@@ -6,15 +6,33 @@ from bs4 import BeautifulSoup
 import trafilatura
 from trafilatura.settings import use_config
 from trafilatura import extract_metadata
+from .cache_service import cache_service
 
 class ValueSerpService:
     def __init__(self):
         self.api_key = os.getenv("VALUESERP_API_KEY") or os.getenv("SERP_API_KEY")
         self.base_url = "https://api.valueserp.com/search"
         
-    async def get_serp_data(self, query: str, location: str = "France", language: str = "fr") -> Dict[str, Any]:
-        """Récupère les données SERP via ValueSERP API"""
+    async def get_serp_data(self, query: str, location: str = "France", language: str = "fr", num_results: int = 20) -> Dict[str, Any]:
+        """
+        Récupère les données SERP via ValueSERP API avec cache 7 jours
+
+        Args:
+            query: Requête de recherche
+            location: Localisation géographique (ex: "France")
+            language: Code langue (ex: "fr")
+            num_results: Nombre de résultats à récupérer (10-30)
+
+        Returns:
+            Dictionnaire contenant organic_results, paa, related_searches, inline_videos
+        """
         
+        # 🚀 CACHE: Vérification du cache d'abord
+        cached_result = cache_service.get("serp", query, location, language, num_results)
+        if cached_result is not None:
+            print(f"📦 Cache HIT: SERP '{query}' (économie API + scraping)")
+            return cached_result
+
         params = {
             "api_key": self.api_key,
             "q": query,
@@ -22,7 +40,7 @@ class ValueSerpService:
             "google_domain": "google.fr",
             "gl": "fr",
             "hl": language,
-            "num": 10,
+            "num": num_results,  # MODIFIÉ : dynamique au lieu de 10
             "device": "desktop",
             "include_answer_box": "true",
             "include_people_also_ask": "true"
@@ -64,21 +82,27 @@ class ValueSerpService:
                     print(error_msg)
                     print("Vérifiez que votre clé API ValueSERP est valide et active")
                     raise Exception(f"Aucun résultat SERP trouvé pour la requête: {query}")
-                
-                # Traitement des résultats
-                organic_results = await self._process_serp_results(serp_data)
+
+                # ⭐ NOUVEAU : Utiliser le scraping parallèle
+                organic_results = await self._process_serp_results_parallel(serp_data, num_results)
                 
                 # Extraction de tous les éléments SERP
                 paa_questions = self._extract_paa(serp_data)
                 related_searches = self._extract_related_searches(serp_data)
                 inline_videos = self._extract_inline_videos(serp_data)
                 
-                return {
+                final_result = {
                     'organic_results': organic_results,
                     'paa': paa_questions,
                     'related_searches': related_searches,
                     'inline_videos': inline_videos
                 }
+                
+                # 💾 CACHE: Stocker le résultat pour 7 jours
+                cache_service.set("serp", final_result, query, location, language, num_results)
+                print(f"💾 Cache MISS: SERP '{query}' → stocké 7j")
+                
+                return final_result
                 
             except httpx.HTTPError as e:
                 error_msg = f"Erreur HTTP lors de l'appel à ValueSERP: {e}"
@@ -94,9 +118,9 @@ class ValueSerpService:
                 raise Exception(f"Erreur lors de l'analyse SERP: {e}")
     
     async def _process_serp_results(self, serp_data: Dict[str, Any]) -> List[Dict[str, Any]]:
-        """Traite les résultats SERP pour extraire les informations nécessaires"""
+        """Traite les résultats SERP pour extraire les informations nécessaires (DEPRECATED - utiliser _process_serp_results_parallel)"""
         results = []
-        
+
         if "organic_results" in serp_data:
             for result in serp_data["organic_results"]:
                 processed_result = {
@@ -106,23 +130,158 @@ class ValueSerpService:
                     "snippet": result.get("snippet", ""),
                     "domain": self._extract_domain(result.get("link", "")),
                 }
-                
+
                 # Récupération du contenu de la page
                 content_data = await self._fetch_page_content(result.get("link", ""))
                 processed_result.update(content_data)
-                
+
                 results.append(processed_result)
-        
+
         return results
+
+    async def _process_serp_results_parallel(self, serp_data: Dict[str, Any], max_results: int = 10) -> List[Dict[str, Any]]:
+        """
+        Traite les résultats SERP en PARALLÈLE pour extraire les informations nécessaires
+
+        Args:
+            serp_data: Données brutes de ValueSERP
+            max_results: Nombre maximum de résultats à traiter (10 ou 20)
+
+        Returns:
+            Liste des résultats traités avec contenu extrait
+        """
+        if "organic_results" not in serp_data:
+            return []
+
+        organic_results = serp_data["organic_results"][:max_results]
+
+        # Création des tâches parallèles
+        tasks = []
+        for result in organic_results:
+            base_data = {
+                "position": result.get("position", 0),
+                "title": result.get("title", ""),
+                "url": result.get("link", ""),
+                "snippet": result.get("snippet", ""),
+                "domain": self._extract_domain(result.get("link", "")),
+            }
+
+            # Tâche de scraping pour cette page
+            task = self._fetch_and_merge_content(result.get("link", ""), base_data)
+            tasks.append(task)
+
+        # Exécution en PARALLÈLE
+        print(f"🚀 Lancement du scraping parallèle de {len(tasks)} pages...")
+        import time
+        start_time = time.time()
+
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+
+        elapsed = time.time() - start_time
+        print(f"✅ Scraping parallèle terminé en {elapsed:.2f}s")
+
+        # Filtrage des erreurs
+        valid_results = []
+        error_count = 0
+
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                error_count += 1
+                print(f"⚠️ Erreur page #{i+1}: {str(result)[:100]}")
+                # Ajouter un résultat vide pour maintenir la cohérence
+                valid_results.append({
+                    "position": i + 1,
+                    "title": organic_results[i].get("title", ""),
+                    "url": organic_results[i].get("link", ""),
+                    "snippet": organic_results[i].get("snippet", ""),
+                    "domain": self._extract_domain(organic_results[i].get("link", "")),
+                    "content": "",
+                    "word_count": 0,
+                    "h1": "",
+                    "h2": "",
+                    "h3": "",
+                    "author": "",
+                    "date": "",
+                    "description": "",
+                    "sitename": "",
+                    "language": "fr",
+                    "internal_links": 0,
+                    "external_links": 0,
+                    "images": 0,
+                    "tables": 0,
+                    "lists": 0,
+                    "videos": 0,
+                    "titles": 0,
+                    "content_quality": "error",
+                    "scraping_error": True
+                })
+            else:
+                valid_results.append(result)
+
+        print(f"📊 Résultats valides: {len(valid_results) - error_count}/{len(results)}")
+
+        return valid_results
+
+    async def _fetch_and_merge_content(self, url: str, base_data: Dict[str, Any]) -> Dict[str, Any]:
+        """
+        Récupère le contenu d'une page et fusionne avec les données de base
+        Version optimisée avec gestion d'erreur
+        """
+        try:
+            content_data = await self._fetch_page_content(url)
+            return {**base_data, **content_data}
+        except Exception as e:
+            print(f"❌ Erreur scraping {url}: {str(e)[:50]}")
+            # Retourner données de base sans contenu
+            return {
+                **base_data,
+                "content": "",
+                "word_count": 0,
+                "h1": "",
+                "h2": "",
+                "h3": "",
+                "author": "",
+                "date": "",
+                "description": "",
+                "sitename": "",
+                "language": "fr",
+                "internal_links": 0,
+                "external_links": 0,
+                "images": 0,
+                "tables": 0,
+                "lists": 0,
+                "videos": 0,
+                "titles": 0,
+                "content_quality": "error"
+            }
     
     async def _fetch_page_content(self, url: str) -> Dict[str, Any]:
-        """Récupère le contenu d'une page web pour analyse - Version avec trafilatura"""
+        """Récupère le contenu d'une page web pour analyse avec cache 7 jours"""
+        
+        # 🚀 CACHE: Vérification du cache d'abord  
+        cached_content = cache_service.get("content", url)
+        if cached_content is not None:
+            print(f"📦 Cache HIT: {url[:50]}...")
+            return cached_content
+
+        # OPTIMISÉ : Timeout réduit à 10s (5s connexion + 10s total)
+        timeout = httpx.Timeout(10.0, connect=5.0)
+
+        # Headers améliorés pour éviter blocage
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8',
+            'Accept-Language': 'fr-FR,fr;q=0.9,en;q=0.8',
+            'Accept-Encoding': 'gzip, deflate',
+            'DNT': '1',
+            'Connection': 'keep-alive',
+            'Upgrade-Insecure-Requests': '1'
+        }
+
         try:
-            print(f"🔍 Récupération du contenu: {url}")
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                response = await client.get(url, headers={
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'
-                })
+            print(f"🔍 Récupération: {url[:60]}...")
+            async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+                response = await client.get(url, headers=headers)
                 
                 if response.status_code == 200:
                     html_content = response.text
@@ -170,13 +329,24 @@ class ValueSerpService:
                         "content_quality": content_quality
                     }
                     
-                    print(f"✅ Contenu récupéré: {word_count} mots, qualité: {content_quality}, auteur: {metadata.get('author', 'N/A')}")
+                    print(f"✅ OK: {word_count} mots, qualité: {content_quality}")
+                    
+                    # 💾 CACHE: Stocker le contenu si valide
+                    if word_count > 0:
+                        cache_service.set("content", result, url)
+                        print(f"💾 Cache MISS: {url[:50]}... → stocké 7j")
+                    
                     return result
                 else:
-                    print(f"❌ Erreur HTTP {response.status_code} pour {url}")
-                    
+                    print(f"⚠️ HTTP {response.status_code}")
+                    raise Exception(f"HTTP {response.status_code}")
+
+        except httpx.TimeoutException:
+            print(f"⏱️ Timeout pour {url[:50]}")
+            raise Exception("Timeout")
         except Exception as e:
-            print(f"❌ Erreur lors de la récupération du contenu de {url}: {e}")
+            print(f"❌ Erreur: {str(e)[:50]}")
+            raise
             
         return {
             "h1": "",

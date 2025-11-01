@@ -6,6 +6,7 @@ from sklearn.feature_extraction.text import TfidfVectorizer
 import numpy as np
 import asyncio
 from statistics import mean
+from .cache_service import cache_service
 
 # Télécharger les ressources NLTK nécessaires
 try:
@@ -21,9 +22,40 @@ except LookupError:
 from nltk.corpus import stopwords
 from nltk.tokenize import word_tokenize
 
+# Import du service LLM (optionnel)
+try:
+    # Essai import relatif
+    from .llm_keyword_filter import llm_filter
+    LLM_AVAILABLE = True
+    print(f"✅ LLM Service importé avec succès (relatif), enabled: {llm_filter.enabled if llm_filter else False}")
+except ImportError:
+    try:
+        # Fallback import absolu
+        from services.llm_keyword_filter import llm_filter
+        LLM_AVAILABLE = True
+        print(f"✅ LLM Service importé avec succès (absolu), enabled: {llm_filter.enabled if llm_filter else False}")
+    except ImportError as e:
+        llm_filter = None
+        LLM_AVAILABLE = False
+        print(f"⚠️ LLM Service non disponible: {e}")
+
 class SEOAnalyzer:
     def __init__(self):
         self.french_stopwords = set(stopwords.words('french'))
+        
+        # Service LLM pour filtrage avancé (optionnel)
+        self.llm_filter = llm_filter if LLM_AVAILABLE else None
+        print(f"🔍 SEOAnalyzer.__init__: LLM_AVAILABLE={LLM_AVAILABLE}, llm_filter={self.llm_filter}")
+        
+        # Si import global a échoué, essai import dans __init__
+        if not LLM_AVAILABLE:
+            try:
+                from services.llm_keyword_filter import llm_filter as local_llm_filter
+                self.llm_filter = local_llm_filter
+                print(f"✅ LLM Service importé dans __init__, enabled: {self.llm_filter.enabled if self.llm_filter else False}")
+            except ImportError as e:
+                print(f"⚠️ Import LLM dans __init__ échoué: {e}")
+                self.llm_filter = None
         
         # Liste étendue de stopwords français incluant connecteurs et mots de liaison
         extended_stopwords = [
@@ -177,7 +209,13 @@ class SEOAnalyzer:
         self.regex_whitespace = re.compile(r'\s+')
         
     async def analyze_competition(self, query: str, serp_results: Dict[str, Any]) -> Dict[str, Any]:
-        """Analyse complète de la concurrence SEO"""
+        """Analyse complète de la concurrence SEO avec cache 7 jours"""
+        
+        # 🚀 CACHE: Vérification du cache d'abord
+        cached_analysis = cache_service.get("seo_analysis", query)
+        if cached_analysis is not None:
+            print(f"📦 Cache HIT: Analyse SEO '{query}' (économie calculs)")
+            return cached_analysis
         
         # Réinitialisation des caches pour chaque nouvelle analyse
         self._text_cache = {}
@@ -198,6 +236,10 @@ class SEOAnalyzer:
         keywords_obligatoires = self._extract_required_keywords(all_content, query_words)
         keywords_complementaires = self._extract_complementary_keywords(all_content, keywords_obligatoires)
         
+        # 🤖 Filtrage LLM optionnel (amélioration qualité des mots-clés)
+        keywords_obligatoires = await self._enhance_keywords_with_llm(keywords_obligatoires, query, "required")
+        keywords_complementaires = await self._enhance_keywords_with_llm(keywords_complementaires, query, "complementary")
+        
         # Ajout des statistiques min-max pour chaque mot-clé
         keywords_obligatoires = self._add_minmax_stats(keywords_obligatoires, organic_results)
         keywords_complementaires = self._add_minmax_stats(keywords_complementaires, organic_results)
@@ -208,7 +250,7 @@ class SEOAnalyzer:
         trigrams = self._extract_trigrams(all_content, query)
         questions = self._generate_questions(query, keywords_obligatoires, paa_questions)
         
-        concurrence_analysee = self._analyze_competitors(organic_results, keywords_obligatoires)
+        concurrence_analysee = self._analyze_competitors(organic_results, keywords_obligatoires, keywords_complementaires)
         
         score_target = self._calculate_target_score(concurrence_analysee)
         mots_requis = self._calculate_required_words(concurrence_analysee)
@@ -217,7 +259,7 @@ class SEOAnalyzer:
         type_analysis = self._analyze_content_types(organic_results)
         word_stats = self._calculate_word_statistics(organic_results)
         
-        return {
+        final_analysis = {
             "query": query,
             "score_target": score_target,
             "mots_requis": mots_requis,
@@ -237,6 +279,12 @@ class SEOAnalyzer:
             "mots_uniques_min_max_moyenne": word_stats,
             "concurrence": concurrence_analysee
         }
+        
+        # 💾 CACHE: Stocker l'analyse pour 7 jours
+        cache_service.set("seo_analysis", final_analysis, query)
+        print(f"💾 Cache MISS: Analyse SEO '{query}' → stocké 7j")
+        
+        return final_analysis
     
     def _extract_all_content(self, serp_results: List[Dict[str, Any]]) -> str:
         """Extrait tout le contenu textuel des résultats SERP"""
@@ -805,7 +853,7 @@ class SEOAnalyzer:
             # Analyser les occurrences dans chaque page concurrente (TOP 5 focus)
             occurrences = []
             
-            for i, result in enumerate(organic_results[:5]):  # Focus TOP 5
+            for i, result in enumerate(organic_results[:10]):  # Focus TOP 10 (pour TOP 20 résultats)
                 # Utilise le cache pour éviter retokenisation
                 if i not in content_cache:
                     content = result.get("content", "") + " " + result.get("title", "") + " " + result.get("h1", "") + " " + result.get("h2", "") + " " + result.get("h3", "")
@@ -929,7 +977,7 @@ class SEOAnalyzer:
         
         return ";".join(questions[:60])
     
-    def _analyze_competitors(self, serp_results: List[Dict[str, Any]], keywords: List[List[Any]]) -> List[Dict[str, Any]]:
+    def _analyze_competitors(self, serp_results: List[Dict[str, Any]], keywords_obligatoires: List[List[Any]], keywords_complementaires: List[List[Any]]) -> List[Dict[str, Any]]:
         """
         🔍 ANALYSE DÉTAILLÉE DE CHAQUE CONCURRENT AVEC SEUILS ADAPTATIFS
         
@@ -941,6 +989,8 @@ class SEOAnalyzer:
         - Recommandations d'optimisation adaptatives
         """
         # ÉTAPE 1: Collecte des données pour établir les normes du marché
+        # Combinaison des mots-clés pour compatibilité avec l'ancienne méthode
+        keywords = keywords_obligatoires + keywords_complementaires
         market_data = self._analyze_market_norms(serp_results, keywords)
         
         competitors = []
@@ -961,7 +1011,7 @@ class SEOAnalyzer:
             ])
             
             # Calculs principaux avec seuils adaptatifs
-            score = self._calculate_seo_score(full_content, keyword_dict)
+            score = self._calculate_seo_score(full_content, keywords_obligatoires, keywords_complementaires)
             suroptimisation = self._calculate_adaptive_overoptimization(full_content, keywords, market_data)
             
             # 🔬 ANALYSE DÉTAILLÉE DE SUROPTIMISATION ADAPTATIVE
@@ -1489,53 +1539,195 @@ class SEOAnalyzer:
         
         return recommendations
     
-    def _calculate_seo_score(self, content: str, keyword_dict: Dict[str, int]) -> int:
+    def _detect_keyword_hybrid(self, content: str, keyword: str) -> int:
         """
-        Calcule le score SEO privilégiant la diversité sémantique over bourrage
+        Détection hybride robuste avec fenêtre glissante + validation contextuelle
         
-        🎯 NOUVELLE APPROCHE :
-        - Récompense la présence de BEAUCOUP de mots-clés différents 
-        - Pénalise la concentration excessive sur quelques mots
-        - Favorise la densité modérée plutôt qu'élevée
-        - Score réaliste entre 15-85 (plus jamais 100 partout)
+        🔍 MÉTHODE :
+        1. Normalisation : suppression accents, ponctuation → espaces
+        2. Fenêtre glissante pour expressions multi-mots
+        3. Validation contextuelle pour cas complexes (apostrophes, tirets)
+        """
+        if not content or not keyword:
+            return 0
+        
+        # Normalisation du contenu et du mot-clé
+        normalized_content = self._normalize_for_detection(content)
+        normalized_keyword = self._normalize_for_detection(keyword)
+        
+        # Tokenisation
+        words = normalized_content.split()
+        kw_parts = normalized_keyword.split()
+        
+        if not words or not kw_parts:
+            return 0
+        
+        # === DÉTECTION PAR FENÊTRE GLISSANTE ===
+        candidates_count = 0
+        
+        if len(kw_parts) == 1:
+            # Mot simple : "créatine" → compte direct
+            candidates_count = sum(1 for w in words if w == kw_parts[0])
+        else:
+            # Expression multi-mots : "créatine monohydrate" → fenêtre glissante
+            k = len(kw_parts)
+            for i in range(len(words) - k + 1):
+                if all(words[i + j] == kw_parts[j] for j in range(k)):
+                    candidates_count += 1
+        
+        # === VALIDATION CONTEXTUELLE ===
+        # Activation pour cas complexes
+        risky = ("'" in keyword) or ("-" in keyword) or (len(kw_parts) > 1)
+        
+        if risky and candidates_count > 0:
+            # Pattern flexible pour variations typographiques (sur contenu normalisé)
+            valid_count = self._validate_with_regex(normalized_content, normalized_keyword)
+            # Sécurité : ne peut dépasser la détection normalisée
+            return min(candidates_count, valid_count)
+        
+        return candidates_count
+    
+    def _normalize_for_detection(self, text: str) -> str:
+        """Normalisation pour détection : accents + ponctuation → espaces"""
+        import unicodedata
+        
+        # Suppression des accents
+        text = unicodedata.normalize('NFD', text)
+        text = ''.join(c for c in text if unicodedata.category(c) != 'Mn')
+        
+        # Conversion en minuscules
+        text = text.lower()
+        
+        # Ponctuation → espaces (garde apostrophes et tirets pour validation)
+        import string
+        punct_to_space = string.punctuation.replace("'", "").replace("-", "")
+        for p in punct_to_space:
+            text = text.replace(p, ' ')
+        
+        # Normalisation des espaces
+        text = ' '.join(text.split())
+        
+        return text
+    
+    def _validate_with_regex(self, content: str, keyword: str) -> int:
+        """Validation contextuelle avec pattern flexible"""
+        import re
+        
+        # Division en parties
+        parts = re.split(r"[''′\-\s]+", keyword.lower())
+        parts = [p.strip() for p in parts if p.strip()]
+        
+        if not parts:
+            return 0
+        
+        # Séparateur flexible pour variations typographiques
+        sep = r"(?:[''′\-\s]+)"
+        
+        # Construction du pattern core
+        if len(parts) == 1:
+            core = re.escape(parts[0])
+        else:
+            core = sep.join(re.escape(part) for part in parts)
+        
+        # Pattern avec boundaries pour éviter faux positifs
+        pattern = rf"(?<![\w]){core}(?![\w])"
+        
+        # Recherche avec gestion d'erreurs
+        try:
+            matches = re.findall(pattern, content.lower(), re.IGNORECASE)
+            return len(matches)
+        except re.error:
+            # Fallback si pattern invalide
+            return 0
+    
+    def _calculate_seo_score(self, content: str, keywords_obligatoires: List, keywords_complementaires: List) -> int:
+        """
+        🎯 NOUVEAU CALCUL DE SCORE 70/30 avec détection hybride
+        
+        📊 MÉTHODE :
+        - 70% pour les mots-clés obligatoires (réussis/total)
+        - 30% pour les mots-clés complémentaires (réussis/total)
+        - Malus de suroptimisation : (suroptimisés/total) × 20
+        - Score final : max(0, min(100, base_score - malus))
+        
+        🔍 CRITÈRES :
+        - Mot-clé "réussi" si freq_actuelle ≥ min_freq
+        - Mot-clé "suroptimisé" si freq_actuelle > max_freq
         """
         if not content:
-            return 5
-            
-        content_words = self._tokenize_and_filter(content)
-        word_counts = Counter(content_words)
-        total_words = len(content_words)
+            return 0
         
-        if total_words == 0:
-            return 5
+        if not keywords_obligatoires and not keywords_complementaires:
+            return 50  # Score neutre si pas de mots-clés
         
-        # Analyse des mots-clés par catégories
-        primary_keywords = list(keyword_dict.items())[:5]     # Top 5 - obligatoires
-        secondary_keywords = list(keyword_dict.items())[5:15] # 5-15 - importants  
-        tertiary_keywords = list(keyword_dict.items())[15:30] # 15-30 - diversité
+        # === COMPTAGE AVEC DÉTECTION HYBRIDE ===
+        obligatoires_reussis = 0
+        obligatoires_suroptimises = 0
         
-        total_score = 0
-        
-        # === SECTION 1: MOTS-CLÉS PRIMAIRES (max 25 points) ===
-        primary_score = 0
-        for keyword, expected_freq in primary_keywords:
-            actual_freq = word_counts.get(keyword, 0)
-            if actual_freq > 0:
-                density = (actual_freq / total_words) * 100
+        for kw_data in keywords_obligatoires:
+            if len(kw_data) >= 5:  # [keyword, freq, importance, min_freq, max_freq]
+                keyword = kw_data[0]
+                min_freq = kw_data[3]
+                max_freq = kw_data[4]
                 
-                # Courbe optimale : récompense la modération
-                if 0.3 <= density <= 1.5:
-                    primary_score += 5  # Zone optimale
-                elif 0.1 <= density < 0.3:
-                    primary_score += 3  # Sous-optimisé
-                elif 1.5 < density <= 3.0:
-                    primary_score += 2  # Légèrement trop
-                elif density > 3.0:
-                    primary_score += 1  # Pénalité bourrage
-                else:
-                    primary_score += 1  # Présence minimale
+                # Détection hybride avec fenêtre glissante
+                actual_freq = self._detect_keyword_hybrid(content, keyword)
+                
+                if actual_freq >= min_freq:
+                    obligatoires_reussis += 1
+                
+                if actual_freq > max_freq:
+                    obligatoires_suroptimises += 1
         
-        total_score += min(primary_score, 25)
+        complementaires_reussis = 0
+        complementaires_suroptimises = 0
+        
+        for kw_data in keywords_complementaires:
+            if len(kw_data) >= 5:  # [keyword, freq, importance, min_freq, max_freq]
+                keyword = kw_data[0]
+                min_freq = kw_data[3]
+                max_freq = kw_data[4]
+                
+                # Détection hybride avec fenêtre glissante
+                actual_freq = self._detect_keyword_hybrid(content, keyword)
+                
+                if actual_freq >= min_freq:
+                    complementaires_reussis += 1
+                
+                if actual_freq > max_freq:
+                    complementaires_suroptimises += 1
+        
+        # === CALCUL DU SCORE BASE ===
+        total_obligatoires = len(keywords_obligatoires)
+        total_complementaires = len(keywords_complementaires)
+        
+        # Score obligatoires (70%)
+        if total_obligatoires > 0:
+            score_obligatoires = (obligatoires_reussis / total_obligatoires) * 70
+        else:
+            score_obligatoires = 70  # Bonus si pas d'obligatoires
+        
+        # Score complémentaires (30%)
+        if total_complementaires > 0:
+            score_complementaires = (complementaires_reussis / total_complementaires) * 30
+        else:
+            score_complementaires = 30  # Bonus si pas de complémentaires
+        
+        base_score = score_obligatoires + score_complementaires
+        
+        # === MALUS DE SUROPTIMISATION ===
+        total_mots_cles = total_obligatoires + total_complementaires
+        total_suroptimises = obligatoires_suroptimises + complementaires_suroptimises
+        
+        if total_mots_cles > 0:
+            malus = (total_suroptimises / total_mots_cles) * 20
+        else:
+            malus = 0
+        
+        # === SCORE FINAL ===
+        score_final = max(0, min(100, base_score - malus))
+        
+        return int(score_final)
         
         # === SECTION 2: DIVERSITÉ SECONDAIRE (max 20 points) ===
         secondary_present = sum(1 for kw, _ in secondary_keywords if word_counts.get(kw, 0) > 0)
@@ -1703,8 +1895,8 @@ class SEOAnalyzer:
         if not scores:
             return 50
             
-        # Score cible = moyenne des 3 premiers + 5% pour surpasser la concurrence
-        top_scores = sorted(scores, reverse=True)[:3]
+        # Score cible = moyenne des 5 premiers (au lieu de 3) pour TOP 20
+        top_scores = sorted(scores, reverse=True)[:5]  # TOP 5 au lieu de TOP 3
         target = int(mean(top_scores) + 5)  # Ajout de 5 points au lieu de 10%
         return min(target, 95)  # Plafond plus réaliste à 95
     
@@ -1712,18 +1904,18 @@ class SEOAnalyzer:
         """Calcule le nombre de mots recommandé avec une approche plus équilibrée"""
         if not competitors:
             return 800
-            
+
         word_counts = [comp.get("words", 0) for comp in competitors if comp.get("words", 0) > 100]
         if not word_counts:
             return 800
-        
-        # Utiliser la médiane plutôt que les plus gros pour éviter les valeurs extrêmes
-        word_counts_sorted = sorted(word_counts)
-        median_words = word_counts_sorted[len(word_counts_sorted)//2]
-        
+
+        # Utiliser la médiane des TOP 8 (au lieu de tout) pour TOP 20
+        word_counts_sorted = sorted(word_counts, reverse=True)[:8]  # TOP 8
+        median_words = sorted(word_counts_sorted)[len(word_counts_sorted)//2]
+
         # Cible = médiane + marge raisonnable (pas 10% mais +200 mots)
         target = median_words + 200
-        
+
         # Limite minimale raisonnable de 600 mots
         return max(target, 600)
     
@@ -1983,4 +2175,54 @@ class SEOAnalyzer:
                     "recommendations": ["Réduire la densité de 'créatine' (<2%)", "Réduire la densité de 'protéine' (<2%)", "Distribuer les mots-clés plus naturellement", "Éliminer les patterns de keyword stuffing"]
                 }
             ]
-        } 
+        }
+    
+    async def _enhance_keywords_with_llm(self, keywords: List[List[Any]], query: str, keyword_type: str) -> List[List[Any]]:
+        """
+        🤖 Améliore la qualité des mots-clés via filtrage LLM (optionnel)
+        
+        Args:
+            keywords: Liste des mots-clés [mot, fréquence, importance, ...]
+            query: Requête SEO originale
+            keyword_type: "required" ou "complementary" pour logging
+            
+        Returns:
+            Liste filtrée des mots-clés (sans parasites)
+        """
+        
+        print(f"🔍 _enhance_keywords_with_llm appelé pour {keyword_type}, {len(keywords)} mots-clés")
+        print(f"🔍 self.llm_filter: {self.llm_filter}")
+        print(f"🔍 self.llm_filter.enabled: {self.llm_filter.enabled if self.llm_filter else 'None'}")
+        
+        # Si service LLM non disponible, retourner les mots-clés originaux
+        if not self.llm_filter or not self.llm_filter.enabled:
+            print(f"⚠️ LLM Service non disponible pour {keyword_type}, retour mots-clés originaux")
+            return keywords
+        
+        try:
+            # Extraction des mots-clés seuls (première colonne)
+            keywords_only = [kw[0] for kw in keywords if len(kw) > 0]
+            
+            if not keywords_only:
+                return keywords
+            
+            # Filtrage via LLM
+            filtered_keywords = await self.llm_filter.filter_keywords_batch(keywords_only, query)
+            
+            # Reconstruction des tuples avec métadonnées pour les mots-clés conservés
+            enhanced_keywords = []
+            for original_kw in keywords:
+                if len(original_kw) > 0 and original_kw[0].lower() in [fkw.lower() for fkw in filtered_keywords]:
+                    enhanced_keywords.append(original_kw)
+            
+            # Logging des améliorations
+            removed_count = len(keywords) - len(enhanced_keywords)
+            if removed_count > 0:
+                print(f"🤖 LLM amélioration {keyword_type}: {removed_count} mots-clés parasites supprimés")
+            
+            return enhanced_keywords
+            
+        except Exception as e:
+            # Fallback silencieux vers mots-clés originaux
+            print(f"⚠️ LLM fallback pour {keyword_type}: {str(e)}")
+            return keywords 

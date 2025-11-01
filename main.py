@@ -2,17 +2,37 @@ from fastapi import FastAPI, Request, Form, HTTPException, Query, APIRouter
 from fastapi.responses import HTMLResponse
 from fastapi.templating import Jinja2Templates
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 import uvicorn
 import os
+import logging
 from dotenv import load_dotenv
 from services.valueserp_service import ValueSerpService
 from services.seo_analyzer import SEOAnalyzer
+from services.cache_service import cache_service
 from typing import Optional, List, Dict, Any
 import time
+from config import settings
 
 # Charger les variables d'environnement
 load_dotenv()
+
+# Configuration du logging LLM pour debug (optionnel)
+if os.getenv("LLM_DEBUG_ENABLED", "false").lower() == "true":
+    logging.basicConfig(
+        level=logging.DEBUG,
+        format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler('llm_debug.log')
+        ]
+    )
+    print("🐛 DEBUG LLM activé - Logs détaillés dans llm_debug.log")
+
+# Debug: vérifier si les variables sont chargées
+import sys
+print(f"🔍 DEBUG - VALUESERP_API_KEY trouvée: {'✅' if os.getenv('VALUESERP_API_KEY') else '❌'}", file=sys.stderr)
+print(f"🔍 DEBUG - OPENAI_API_KEY trouvée: {'✅' if os.getenv('OPENAI_API_KEY') else '❌'}", file=sys.stderr)
 
 # Configuration du sous-chemin - Forcer à vide car reverse proxy gère le préfixe
 ROOT_PATH = ""  # os.getenv("ROOT_PATH", "")
@@ -112,8 +132,8 @@ async def analyze_query(
 ):
     """Endpoint principal pour l'analyse sémantique SEO (interface web)"""
     try:
-        # Récupération des résultats SERP via ValueSERP
-        serp_results = await valueserp_service.get_serp_data(query, location, language)
+        # Récupération des résultats SERP via ValueSERP (fixé à 20)
+        serp_results = await valueserp_service.get_serp_data(query, location, language, 20)
         
         # Analyse sémantique complète
         analysis_results = await seo_analyzer.analyze_competition(query, serp_results)
@@ -142,9 +162,10 @@ async def api_analyze_complete(request: AnalysisRequest):
     """
     try:
         serp_results = await valueserp_service.get_serp_data(
-            request.query, 
-            request.location, 
-            request.language
+            request.query,
+            request.location,
+            request.language,
+            20
         )
         
         analysis_results = await seo_analyzer.analyze_competition(request.query, serp_results)
@@ -220,13 +241,13 @@ async def api_analyze_complete(request: AnalysisRequest):
 
 @seo_router.get("/api/v1/analyze/{query}")
 async def api_analyze_get(
-    query: str, 
+    query: str,
     location: Optional[str] = Query("France", description="Localisation géographique"),
     language: Optional[str] = Query("fr", description="Code langue (fr, en, es, etc.)")
 ):
     """
     🔍 ENDPOINT GET - Analyse rapide par URL
-    
+
     GET /api/v1/analyze/{query}?location=France&language=fr
     Pratique pour les tests rapides et intégrations simples.
     """
@@ -236,38 +257,62 @@ async def api_analyze_get(
 @seo_router.get("/api/v1/competitors/{query}")
 async def api_get_competitors(
     query: str,
-    location: Optional[str] = Query("France"),
-    language: Optional[str] = Query("fr"),
-    top_n: Optional[int] = Query(10, description="Nombre de concurrents (max 10)")
+    location: Optional[str] = Query("France", max_length=50),
+    language: Optional[str] = Query("fr", max_length=5),
+    top_n: Optional[int] = Query(20, ge=1, le=20, description="Nombre de concurrents à retourner (1-20)")
 ):
     """
     🎯 ENDPOINT CONCURRENTS - Analyse uniquement les concurrents
-    
-    GET /api/v1/competitors/{query}?location=France&language=fr&top_n=10
+
+    GET /api/v1/competitors/{query}?location=France&language=fr&top_n=20
     """
+    # Validation de la requête
+    if not query or len(query.strip()) < 2:
+        raise HTTPException(status_code=400, detail="La requête doit contenir au moins 2 caractères")
+    
+    if len(query) > 100:
+        raise HTTPException(status_code=400, detail="La requête ne peut pas dépasser 100 caractères")
+    
     try:
-        serp_results = await valueserp_service.get_serp_data(query, location, language)
+        query = query.strip()
+        serp_results = await valueserp_service.get_serp_data(query, location, language, 20)
+        
         analysis_results = await seo_analyzer.analyze_competition(query, serp_results)
         
         competitors = []
-        for comp in analysis_results.get("concurrents", [])[:top_n]:
+        for comp in analysis_results.get("concurrence", [])[:top_n]:
+            # Créer un preview du contenu (200 premiers caractères)
+            content_full = comp.get("content", "")
+            content_preview = content_full[:200] + "..." if len(content_full) > 200 else content_full
+            
             competitors.append({
                 "position": comp.get("position"),
                 "domain": comp.get("domaine"),
                 "url": comp.get("url"),
                 "title": comp.get("title"),
                 "seo_score": comp.get("score"),
-                "overoptimization_score": comp.get("suroptimisation"),
+                "overoptimization": comp.get("suroptimisation"),
                 "word_count": comp.get("words"),
                 "h1": comp.get("h1"),
+                "h2": comp.get("h2", ""),
+                "h3": comp.get("h3", ""),
+                "content_preview": content_preview,
+                "content_quality": comp.get("content_quality", "unknown"),
                 "internal_links": comp.get("internal_links", 0),
-                "external_links": comp.get("external_links", 0)
+                "external_links": comp.get("external_links", 0),
+                "images": comp.get("images", 0),
+                "titles": comp.get("titles", 0)
             })
         
         return {
             "query": query,
+            "location": location,
+            "language": language,
             "total_competitors": len(competitors),
             "analysis_timestamp": str(int(time.time())),
+            "target_score": analysis_results.get("score_target", 0),
+            "avg_score": round(sum(c["seo_score"] for c in competitors) / len(competitors), 1) if competitors else 0,
+            "avg_word_count": round(sum(c["word_count"] for c in competitors) / len(competitors)) if competitors else 0,
             "competitors": competitors
         }
         
@@ -283,11 +328,11 @@ async def api_get_keywords(
 ):
     """
     🔑 ENDPOINT MOTS-CLÉS - Analyse sémantique pure
-    
+
     GET /api/v1/keywords/{query}?keyword_type=all
     """
     try:
-        serp_results = await valueserp_service.get_serp_data(query, location, language)
+        serp_results = await valueserp_service.get_serp_data(query, location, language, 20)
         analysis_results = await seo_analyzer.analyze_competition(query, serp_results)
         
         response = {
@@ -337,16 +382,16 @@ async def api_get_keywords(
 @seo_router.get("/api/v1/metrics/{query}")
 async def api_get_metrics(
     query: str,
-    location: Optional[str] = Query("France"), 
+    location: Optional[str] = Query("France"),
     language: Optional[str] = Query("fr")
 ):
     """
     📊 ENDPOINT MÉTRIQUES - Données de performance uniquement
-    
+
     GET /api/v1/metrics/{query}
     """
     try:
-        serp_results = await valueserp_service.get_serp_data(query, location, language)
+        serp_results = await valueserp_service.get_serp_data(query, location, language, 20)
         analysis_results = await seo_analyzer.analyze_competition(query, serp_results)
         
         return {
@@ -400,9 +445,13 @@ async def api_info():
         "redoc": "/redoc"
     }
 
-# Ancien endpoint pour rétrocompatibilité 
+# Ancien endpoint pour rétrocompatibilité
 @seo_router.get("/api/analyze/{query}")
-async def api_analyze_legacy(query: str, location: Optional[str] = "France", language: Optional[str] = "fr"):
+async def api_analyze_legacy(
+    query: str,
+    location: Optional[str] = "France",
+    language: Optional[str] = "fr"
+):
     """Endpoint legacy - utilisez /api/v1/analyze/{query} à la place"""
     request_data = AnalysisRequest(query=query, location=location, language=language)
     return await api_analyze_complete(request_data)
@@ -420,22 +469,53 @@ async def debug_config():
     # Récupération des variables d'environnement
     serp_key = os.getenv("SERP_API_KEY")
     valueserp_key = os.getenv("VALUESERP_API_KEY")
+    openai_key = os.getenv("OPENAI_API_KEY")
     root_path = os.getenv("ROOT_PATH", "")
+    
+    # Import du service LLM pour statistiques
+    try:
+        from services.llm_keyword_filter import llm_filter
+        llm_stats = llm_filter.get_daily_stats() if llm_filter else {"error": "Service non initialisé"}
+    except ImportError:
+        llm_stats = {"error": "Service non disponible - OpenAI non installé"}
     
     config_status = {
         "root_path": root_path,
         "serp_api_configured": bool(serp_key),
         "valueserp_api_configured": bool(valueserp_key),
+        "openai_api_configured": bool(openai_key),
         "api_key_length": len(serp_key) if serp_key else 0,
         "valueserp_key_length": len(valueserp_key) if valueserp_key else 0,
+        "openai_key_length": len(openai_key) if openai_key else 0,
+        "llm_filtering_stats": llm_stats,
         "environment_variables": {
             "ROOT_PATH": root_path,
             "SERP_API_KEY": f"{'✅ Configurée' if serp_key else '❌ Manquante'} ({len(serp_key) if serp_key else 0} caractères)",
-            "VALUESERP_API_KEY": f"{'✅ Configurée' if valueserp_key else '❌ Manquante'} ({len(valueserp_key) if valueserp_key else 0} caractères)"
+            "VALUESERP_API_KEY": f"{'✅ Configurée' if valueserp_key else '❌ Manquante'} ({len(valueserp_key) if valueserp_key else 0} caractères)",
+            "OPENAI_API_KEY": f"{'✅ Configurée' if openai_key else '❌ Manquante'} ({len(openai_key) if openai_key else 0} caractères)",
+            "LLM_FILTERING_ENABLED": os.getenv("LLM_FILTERING_ENABLED", "false")
         }
     }
     
     return config_status
+
+@seo_router.get("/cache/stats")
+async def cache_stats():
+    """Statistiques du cache pour monitoring"""
+    stats = cache_service.get_stats()
+    return {
+        "cache": stats,
+        "message": "Cache activé 7 jours pour SERP + contenu + analyses" if stats.get("enabled") else "Cache désactivé"
+    }
+
+@seo_router.post("/cache/clear")
+async def clear_cache():
+    """Vide tout le cache (admin)"""
+    success = cache_service.clear_all()
+    return {
+        "success": success,
+        "message": "Cache vidé avec succès" if success else "Erreur lors du vidage du cache"
+    }
 
 # Inclusion du sous-router dans l'application principale
 app.include_router(seo_router)
