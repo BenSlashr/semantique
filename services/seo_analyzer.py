@@ -838,67 +838,78 @@ class SEOAnalyzer:
         return True
     
     def _add_minmax_stats(self, keywords: List[List[Any]], organic_results: List[Dict[str, Any]]) -> List[List[Any]]:
-        """Calcule les recommandations statistiques d'occurrences basées sur les top performers"""
+        """
+        🎯 Calcule les recommandations statistiques d'occurrences basées sur les top performers
+
+        📊 MÉTHODE AMÉLIORÉE (Option 4 + 5) :
+        - Analyse TOP 20 résultats (au lieu de TOP 10)
+        - Target = moyenne(médiane + Q3) pour viser les performers
+        - Fourchette : [target × 0.9, target × 1.25]
+        - Minimums de sécurité augmentés si pas de données
+        """
         enhanced_keywords = []
-        
+
         # Cache pour éviter de retokeniser le même contenu plusieurs fois
         content_cache = {}
-        
+
         for keyword_info in keywords:
             keyword = keyword_info[0]
             freq = keyword_info[1]
             importance = keyword_info[2]
             keyword_lower = keyword.lower()
-            
-            # Analyser les occurrences dans chaque page concurrente (TOP 5 focus)
+
+            # Analyser les occurrences dans chaque page concurrente (TOP 20)
             occurrences = []
-            
-            for i, result in enumerate(organic_results[:10]):  # Focus TOP 10 (pour TOP 20 résultats)
+
+            for i, result in enumerate(organic_results[:20]):  # TOP 20 au lieu de TOP 10
                 # Utilise le cache pour éviter retokenisation
                 if i not in content_cache:
                     content = result.get("content", "") + " " + result.get("title", "") + " " + result.get("h1", "") + " " + result.get("h2", "") + " " + result.get("h3", "")
                     content_cache[i] = self._tokenize_and_filter(content.lower(), include_short_words=True)
-                
+
                 count = content_cache[i].count(keyword_lower)
                 if count > 0:  # Ne compter que les pages qui utilisent le mot-clé
                     occurrences.append(count)
-            
+
             # Calcul statistiques recommandées
             if len(occurrences) >= 2:
                 # Calculs statistiques réels
                 occurrences.sort()
                 median = self._calculate_median(occurrences)
                 q1, q3 = self._calculate_quartiles(occurrences)
-                
-                # Recommandation basée sur médiane +/- écart raisonnable
-                target_min = max(1, int(median * 0.85))  # -15% de la médiane
-                target_max = int(median * 1.15)          # +15% de la médiane
-                
+
+                # 🎯 NOUVEAU : Target = moyenne(médiane + Q3) pour viser les performers
+                target = int((median + q3) / 2)
+
+                # Fourchette décalée vers le haut : [target × 0.9, target × 1.25]
+                target_min = max(1, int(target * 0.9))
+                target_max = int(target * 1.25)
+
                 # Ajustement si fourchette trop étroite
-                if target_max - target_min < 3:
-                    target_max = target_min + 3
-                    
+                if target_max - target_min < 4:
+                    target_max = target_min + 4
+
             elif len(occurrences) == 1:
-                # Une seule occurrence trouvée - estimation conservative
+                # Une seule occurrence trouvée - estimation plus ambitieuse
                 single_occ = occurrences[0]
-                target_min = max(1, int(single_occ * 0.8))
-                target_max = int(single_occ * 1.2)
-                median = single_occ
+                target = int(single_occ * 1.1)  # +10% au lieu de rester à 1.0
+                target_min = max(1, int(target * 0.85))
+                target_max = int(target * 1.3)
             else:
-                # Aucune occurrence - estimation basée sur importance
+                # 🚀 NOUVEAU : Minimums de sécurité augmentés
                 if importance > 70:
-                    median = max(8, freq // 10)  # Mots très importants
+                    target = max(12, freq // 8)   # au lieu de max(8, freq // 10)
                 elif importance > 40:
-                    median = max(4, freq // 20)  # Mots modérément importants
+                    target = max(8, freq // 15)   # au lieu de max(4, freq // 20)
                 else:
-                    median = max(2, freq // 30)  # Mots moins importants
-                
-                target_min = max(1, median - 2)
-                target_max = median + 3
-            
-            # Format : [mot-clé, médiane_recommandée, importance, fourchette_min, fourchette_max]
-            enhanced_keywords.append([keyword, median, importance, target_min, target_max])
-        
+                    target = max(5, freq // 25)   # au lieu de max(2, freq // 30)
+
+                target_min = max(1, target - 2)
+                target_max = target + 4
+
+            # Format : [mot-clé, target_recommandé, importance, fourchette_min, fourchette_max]
+            enhanced_keywords.append([keyword, target, importance, target_min, target_max])
+
         return enhanced_keywords
     
     def _calculate_median(self, values):
@@ -1009,13 +1020,21 @@ class SEOAnalyzer:
                 result.get("content", ""),
                 result.get("snippet", "")
             ])
-            
+
+            # 🔍 Vérification : contenu suffisant pour analyse
+            content_words = self._tokenize_and_filter(full_content)
+            has_sufficient_content = len(content_words) >= 50  # Minimum 50 mots
+
             # Calculs principaux avec seuils adaptatifs
             score = self._calculate_seo_score(full_content, keywords_obligatoires, keywords_complementaires)
-            suroptimisation = self._calculate_adaptive_overoptimization(full_content, keywords, market_data)
-            
-            # 🔬 ANALYSE DÉTAILLÉE DE SUROPTIMISATION ADAPTATIVE
-            overopt_details = self._analyze_competitor_overoptimization_adaptive(full_content, keywords, market_data)
+
+            # ⚠️ Suroptimisation = 0 si contenu insuffisant (évite faux positifs)
+            if has_sufficient_content:
+                suroptimisation = self._calculate_adaptive_overoptimization(full_content, keywords, market_data)
+                overopt_details = self._analyze_competitor_overoptimization_adaptive(full_content, keywords, market_data)
+            else:
+                suroptimisation = 0
+                overopt_details = {"total_density": 0, "stuffing_count": 0, "clustering_penalty": 0, "flagged_keywords": []}
             
             competitor = {
                 "h1": result.get("h1", ""),
