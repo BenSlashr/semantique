@@ -219,6 +219,17 @@ async def api_analyze_complete(request: AnalysisRequest):
             for ng in analysis_results.get("ngrams", [])
         ]
         
+        # Expose raw SERP organic results and PAA for downstream consumers
+        serp_organic = []
+        for r in serp_results.get("organic_results", []):
+            serp_organic.append({
+                "position": r.get("position", 0),
+                "url": r.get("url", ""),
+                "title": r.get("title", ""),
+                "domain": r.get("domain", ""),
+                "snippet": r.get("snippet", "")
+            })
+
         return {
             "query": request.query,
             "analysis_timestamp": str(int(time.time())),
@@ -226,6 +237,8 @@ async def api_analyze_complete(request: AnalysisRequest):
             "recommended_words": analysis_results.get("mots_requis"),
             "max_overoptimization": analysis_results.get("max_suroptimisation"),
             "competitors": competitors,
+            "serp_results": serp_organic,
+            "paa": serp_results.get("paa", []),
             "required_keywords": required_keywords,
             "complementary_keywords": complementary_keywords,
             "ngrams": ngrams,

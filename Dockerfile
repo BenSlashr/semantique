@@ -26,4 +26,4 @@ EXPOSE 8000
 ENV ROOT_PATH=
 
 # Commande de démarrage (--root-path pour les URLs des formulaires)
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "4", "--root-path", "/semantique"]
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "12", "--root-path", "/semantique"]
