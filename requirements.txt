@@ -15,4 +15,5 @@ trafilatura==2.0.0
 lxml==5.4.0
 lxml_html_clean==0.4.2
 openai>=1.0.0
-redis==5.0.1 
+redis==5.0.1
+sentry-sdk[fastapi] 

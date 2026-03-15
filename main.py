@@ -34,6 +34,16 @@ import sys
 print(f"🔍 DEBUG - VALUESERP_API_KEY trouvée: {'✅' if os.getenv('VALUESERP_API_KEY') else '❌'}", file=sys.stderr)
 print(f"🔍 DEBUG - OPENAI_API_KEY trouvée: {'✅' if os.getenv('OPENAI_API_KEY') else '❌'}", file=sys.stderr)
 
+_sentry_dsn = os.getenv("SENTRY_DSN")
+if _sentry_dsn:
+    import sentry_sdk
+    sentry_sdk.init(
+        dsn=_sentry_dsn,
+        traces_sample_rate=0.1,
+        environment="production",
+        server_name="semantique",
+    )
+
 # Configuration du sous-chemin - Forcer à vide car reverse proxy gère le préfixe
 ROOT_PATH = ""  # os.getenv("ROOT_PATH", "")
 
